@@ -1,0 +1,2 @@
+void StartCounter();
+double GetCounter();
