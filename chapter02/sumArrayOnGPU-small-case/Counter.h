@@ -1,2 +1,0 @@
-void StartCounter();
-double GetCounter();
