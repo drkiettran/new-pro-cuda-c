@@ -4,18 +4,7 @@
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
-#include "Counter.h"
-
-#define CHECK(call)                                                            \
-{                                                                              \
-    const cudaError_t error = call;                                            \
-    if (error != cudaSuccess)                                                  \
-    {                                                                          \
-        fprintf(stderr, "Error: %s:%d, ", __FILE__, __LINE__);                 \
-        fprintf(stderr, "code: %d, reason: %s\n", error,                       \
-                cudaGetErrorString(error));                                    \
-    }                                                                          \
-}
+#include "common.h"
 
 
 /*
@@ -100,7 +89,8 @@ __global__ void sumMatrixGPU(float* MatA, float* MatB, float* MatC, int nx,
 
 int main(int argc, char** argv)
 {
-    printf("%s Starting ", argv[0]);
+    std::cout << "sumMatrixGPUManaged program starts ..." << std::endl;
+    std::chrono::steady_clock::time_point begin;
 
     // set up device
     int dev = 0;
@@ -129,20 +119,18 @@ int main(int argc, char** argv)
     CHECK(cudaMallocManaged((void**)&hostRef, nBytes););
 
     // initialize data at host side
-    StartCounter();
+    begin = StartTimer();
     initialData(A, nxy);
     initialData(B, nxy);
-    double elapse = GetCounter();
-    printf("initialization: \t %f sec\n", elapse);
+    std::cout << "initialData: " << GetDurationInMicroSeconds(begin, StopTimer()) << " microsecs" << std::endl;
 
     memset(hostRef, 0, nBytes);
     memset(gpuRef, 0, nBytes);
 
     // add matrix at host side for result checks
-    StartCounter();
+    begin = StartTimer();
     sumMatrixOnHost(A, B, hostRef, nx, ny);
-    elapse = GetCounter();
-    printf("sumMatrix on host:\t %f sec\n", elapse);
+    std::cout << "sumMatrixOnHost: " << GetDurationInMicroSeconds(begin, StopTimer()) << " microsecs" << std::endl;
 
     // invoke kernel at host side
     int dimx = 32;
@@ -155,14 +143,10 @@ int main(int argc, char** argv)
     sumMatrixGPU << <grid, block >> > (A, B, gpuRef, 1, 1);
 
     // after warm-up, time with unified memory
-    StartCounter();
-
+    begin = StartTimer();
     sumMatrixGPU << <grid, block >> > (A, B, gpuRef, nx, ny);
-
     CHECK(cudaDeviceSynchronize());
-    elapse = GetCounter();
-    printf("sumMatrix on gpu :\t %f sec <<<(%d,%d), (%d,%d)>>> \n", elapse,
-        grid.x, grid.y, block.x, block.y);
+    std::cout << "sumMatrixGPU: " << GetDurationInMicroSeconds(begin, StopTimer()) << " microsecs" << std::endl;
 
     // check kernel error
     CHECK(cudaGetLastError());

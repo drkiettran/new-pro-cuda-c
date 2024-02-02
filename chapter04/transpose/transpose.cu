@@ -4,18 +4,7 @@
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
-#include "Counter.h"
-
-#define CHECK(call)                                                            \
-{                                                                              \
-    const cudaError_t error = call;                                            \
-    if (error != cudaSuccess)                                                  \
-    {                                                                          \
-        fprintf(stderr, "Error: %s:%d, ", __FILE__, __LINE__);                 \
-        fprintf(stderr, "code: %d, reason: %s\n", error,                       \
-                cudaGetErrorString(error));                                    \
-    }                                                                          \
-}
+#include "common.h"
 
 
 /*
@@ -221,6 +210,9 @@ __global__ void transposeDiagonalCol(float* out, float* in, const int nx,
 // main functions
 int main(int argc, char** argv)
 {
+    std::cout << "transpose program starts ..." << std::endl;
+    std::chrono::steady_clock::time_point begin;
+
     // set up device
     int dev = 0;
     cudaDeviceProp deviceProp;
@@ -275,11 +267,10 @@ int main(int argc, char** argv)
     CHECK(cudaMemcpy(d_A, h_A, nBytes, cudaMemcpyHostToDevice));
 
     // warmup to avoide startup overhead
-    StartCounter();
+    begin = StartTimer();
     warmup << <grid, block >> > (d_C, d_A, nx, ny);
     CHECK(cudaDeviceSynchronize());
-    double elapse = GetCounter();
-    printf("warmup         elapsed %f sec\n", elapse);
+    std::cout << "warmup: " << GetDurationInMicroSeconds(begin, StopTimer()) << " microsecs" << std::endl;
     CHECK(cudaGetLastError());
 
     // kernel pointer and descriptor
@@ -333,16 +324,10 @@ int main(int argc, char** argv)
     }
 
     // run kernel
-    StartCounter();
+    begin = StartTimer();
     kernel << <grid, block >> > (d_C, d_A, nx, ny);
     CHECK(cudaDeviceSynchronize());
-    elapse = GetCounter();
-
-    // calculate effective_bandwidth
-    float ibnd = 2 * nx * ny * sizeof(float) / 1e9 / elapse;
-    printf("%s elapsed %f sec <<< grid (%d,%d) block (%d,%d)>>> effective "
-        "bandwidth %f GB\n", kernelName, elapse, grid.x, grid.y, block.x,
-        block.y, ibnd);
+    std::cout << "kernel: " << GetDurationInMicroSeconds(begin, StopTimer()) << " microsecs" << std::endl;
     CHECK(cudaGetLastError());
 
     // check kernel results

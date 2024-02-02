@@ -4,18 +4,7 @@
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
-#include "Counter.h"
-
-#define CHECK(call)                                                            \
-{                                                                              \
-    const cudaError_t error = call;                                            \
-    if (error != cudaSuccess)                                                  \
-    {                                                                          \
-        fprintf(stderr, "Error: %s:%d, ", __FILE__, __LINE__);                 \
-        fprintf(stderr, "code: %d, reason: %s\n", error,                       \
-                cudaGetErrorString(error));                                    \
-    }                                                                          \
-}
+#include "common.h"
 
 /*
  * This example demonstrates the impact of misaligned reads on performance by
@@ -108,6 +97,9 @@ __global__ void readOffsetUnroll4(float* A, float* B, float* C, const int n,
 
 int main(int argc, char** argv)
 {
+    std::cout << "readSegmentUnroll program starts ..." << std::endl;
+    std::chrono::steady_clock::time_point begin;
+
     // set up device
     int dev = 0;
     cudaDeviceProp deviceProp;
@@ -157,22 +149,17 @@ int main(int argc, char** argv)
     CHECK(cudaMemcpy(d_B, h_A, nBytes, cudaMemcpyHostToDevice));
 
     //  kernel 1:
-    double elapse;
-    StartCounter();
+    begin = StartTimer();
     warmup << <grid, block >> > (d_A, d_B, d_C, nElem, offset);
     CHECK(cudaDeviceSynchronize());
-    elapse = GetCounter();
-    printf("warmup     <<< %4d, %4d >>> offset %4d elapsed %f sec\n", grid.x,
-        block.x, offset, elapse);
+    std::cout << "warmup: " << GetDurationInMicroSeconds(begin, StopTimer()) << " microsecs" << std::endl;
     CHECK(cudaGetLastError());
 
     // kernel 1
-    StartCounter();
+    begin = StartTimer();
     readOffset << <grid, block >> > (d_A, d_B, d_C, nElem, offset);
     CHECK(cudaDeviceSynchronize());
-    elapse = GetCounter();
-    printf("readOffset <<< %4d, %4d >>> offset %4d elapsed %f sec\n", grid.x,
-        block.x, offset, elapse);
+    std::cout << "readOffset: " << GetDurationInMicroSeconds(begin, StopTimer()) << " microsecs" << std::endl;
     CHECK(cudaGetLastError());
 
     // copy kernel result back to host side and check device results
@@ -180,12 +167,10 @@ int main(int argc, char** argv)
     checkResult(hostRef, gpuRef, nElem - offset);
 
     // kernel 2
-    StartCounter();
+    begin = StartTimer();
     readOffsetUnroll2 << <grid.x / 2, block >> > (d_A, d_B, d_C, nElem / 2, offset);
     CHECK(cudaDeviceSynchronize());
-    elapse = GetCounter();
-    printf("unroll2    <<< %4d, %4d >>> offset %4d elapsed %f sec\n",
-        grid.x / 2, block.x, offset, elapse);
+    std::cout << "readOffsetUnroll2: " << GetDurationInMicroSeconds(begin, StopTimer()) << " microsecs" << std::endl;
     CHECK(cudaGetLastError());
 
     // copy kernel result back to host side and check device results
@@ -193,12 +178,10 @@ int main(int argc, char** argv)
     checkResult(hostRef, gpuRef, nElem - offset);
 
     // kernel 3
-    StartCounter();
+    begin = StartTimer();
     readOffsetUnroll4 << <grid.x / 4, block >> > (d_A, d_B, d_C, nElem / 4, offset);
     CHECK(cudaDeviceSynchronize());
-    elapse = GetCounter();
-    printf("unroll4    <<< %4d, %4d >>> offset %4d elapsed %f sec\n",
-        grid.x / 4, block.x, offset, elapse);
+    std::cout << "readOffsetUnroll4: " << GetDurationInMicroSeconds(begin, StopTimer()) << " microsecs" << std::endl;
     CHECK(cudaGetLastError());
 
     // copy kernel result back to host side and check device results

@@ -4,18 +4,7 @@
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
-#include "Counter.h"
-
-#define CHECK(call)                                                            \
-{                                                                              \
-    const cudaError_t error = call;                                            \
-    if (error != cudaSuccess)                                                  \
-    {                                                                          \
-        fprintf(stderr, "Error: %s:%d, ", __FILE__, __LINE__);                 \
-        fprintf(stderr, "code: %d, reason: %s\n", error,                       \
-                cudaGetErrorString(error));                                    \
-    }                                                                          \
-}
+#include "common.h"
 
 /*
  * This example demonstrates using explicit CUDA memory transfer to implement
@@ -94,7 +83,8 @@ __global__ void sumMatrixGPU(float* MatA, float* MatB, float* MatC, int nx,
 
 int main(int argc, char** argv)
 {
-    printf("%s Starting ", argv[0]);
+    std::cout << "sumMatrixGPUManual program starts ..." << std::endl;
+    std::chrono::steady_clock::time_point begin;
 
     // set up device
     int dev = 0;
@@ -123,21 +113,17 @@ int main(int argc, char** argv)
     gpuRef = (float*)malloc(nBytes);
 
     // initialize data at host side
-    StartCounter();
+    begin = StartTimer();
     initialData(h_A, nxy);
     initialData(h_B, nxy);
-    double elapse = GetCounter();
-
-    printf("initialization: \t %f sec\n", elapse);
-
+    std::cout << "initialData: " << GetDurationInMicroSeconds(begin, StopTimer()) << " microsecs" << std::endl;
     memset(hostRef, 0, nBytes);
     memset(gpuRef, 0, nBytes);
 
     // add matrix at host side for result checks
-    StartCounter();
+    begin = StartTimer();
     sumMatrixOnHost(h_A, h_B, hostRef, nx, ny);
-    elapse = GetCounter();
-    printf("sumMatrix on host:\t %f sec\n", elapse);
+    std::cout << "sumMatrixOnHost: " << GetDurationInMicroSeconds(begin, StopTimer()) << " microsecs" << std::endl;
 
     // malloc device global memory
     float* d_MatA, * d_MatB, * d_MatC;
@@ -162,13 +148,10 @@ int main(int argc, char** argv)
     CHECK(cudaMemcpy(d_MatA, h_A, nBytes, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(d_MatB, h_B, nBytes, cudaMemcpyHostToDevice));
 
-    StartCounter();
+    begin = StartTimer();
     sumMatrixGPU << <grid, block >> > (d_MatA, d_MatB, d_MatC, nx, ny);
-
     CHECK(cudaDeviceSynchronize());
-    elapse = GetCounter();
-    printf("sumMatrix on gpu :\t %f sec <<<(%d,%d), (%d,%d)>>> \n", elapse,
-        grid.x, grid.y, block.x, block.y);
+    std::cout << "sumMatrixOnGPU: " << GetDurationInMicroSeconds(begin, StopTimer()) << " microsecs" << std::endl;
 
     CHECK(cudaMemcpy(gpuRef, d_MatC, nBytes, cudaMemcpyDeviceToHost));
 

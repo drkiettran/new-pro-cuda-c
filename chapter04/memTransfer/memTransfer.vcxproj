@@ -55,6 +55,7 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
+      <Include>./;../../Common;%(Include)</Include>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -78,12 +79,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <CudaCompile Include="memTransfer.cu" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="Counter.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="Counter.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

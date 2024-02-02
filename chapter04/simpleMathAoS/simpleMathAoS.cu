@@ -4,18 +4,7 @@
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
-#include "Counter.h"
-
-#define CHECK(call)                                                            \
-{                                                                              \
-    const cudaError_t error = call;                                            \
-    if (error != cudaSuccess)                                                  \
-    {                                                                          \
-        fprintf(stderr, "Error: %s:%d, ", __FILE__, __LINE__);                 \
-        fprintf(stderr, "code: %d, reason: %s\n", error,                       \
-                cudaGetErrorString(error));                                    \
-    }                                                                          \
-}
+#include "common.h"
 
 /*
  * A simple example of using an array of structures to store data on the device.
@@ -117,6 +106,9 @@ __global__ void warmup(innerStruct* data, innerStruct* result, const int n)
 
 int main(int argc, char** argv)
 {
+    std::cout << "simpleMathAoS program starts ..." << std::endl;
+    std::chrono::steady_clock::time_point begin;
+
     // set up device
     int dev = 0;
     cudaDeviceProp deviceProp;
@@ -154,23 +146,19 @@ int main(int argc, char** argv)
     dim3 grid((nElem + block.x - 1) / block.x, 1);
 
     // kernel 1: warmup
-    double elapse;
-    StartCounter();
+    begin = StartTimer();
     warmup << <grid, block >> > (d_A, d_C, nElem);
     CHECK(cudaDeviceSynchronize());
-    elapse = GetCounter();
-    printf("warmup      <<< %3d, %3d >>> elapsed %f sec\n", grid.x, block.x, elapse);
+    std::cout << "warmup: " << GetDurationInMicroSeconds(begin, StopTimer()) << " microsecs" << std::endl;
     CHECK(cudaMemcpy(gpuRef, d_C, nBytes, cudaMemcpyDeviceToHost));
     checkInnerStruct(hostRef, gpuRef, nElem);
     CHECK(cudaGetLastError());
 
     // kernel 2: testInnerStruct
-    StartCounter();
+    begin = StartTimer();
     testInnerStruct << <grid, block >> > (d_A, d_C, nElem);
     CHECK(cudaDeviceSynchronize());
-    elapse = GetCounter();
-    printf("innerstruct <<< %3d, %3d >>> elapsed %f sec\n", grid.x, block.x,
-        elapse);
+    std::cout << "testInnerStruct: " << GetDurationInMicroSeconds(begin, StopTimer()) << " microsecs" << std::endl;
     CHECK(cudaMemcpy(gpuRef, d_C, nBytes, cudaMemcpyDeviceToHost));
     checkInnerStruct(hostRef, gpuRef, nElem);
     CHECK(cudaGetLastError());

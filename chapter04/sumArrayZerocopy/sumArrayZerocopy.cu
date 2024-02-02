@@ -4,18 +4,7 @@
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
-#include "Counter.h"
-
-#define CHECK(call)                                                            \
-{                                                                              \
-    const cudaError_t error = call;                                            \
-    if (error != cudaSuccess)                                                  \
-    {                                                                          \
-        fprintf(stderr, "Error: %s:%d, ", __FILE__, __LINE__);                 \
-        fprintf(stderr, "code: %d, reason: %s\n", error,                       \
-                cudaGetErrorString(error));                                    \
-    }                                                                          \
-}
+#include "common.h"
 
 /*
  * This example demonstrates the use of zero-copy memory to remove the need to
@@ -81,6 +70,8 @@ __global__ void sumArraysZeroCopy(float* A, float* B, float* C, const int N)
 
 int main(int argc, char** argv)
 {
+    std::cout << argv[0] << " starting ..." << std::endl;
+
     // set up device
     int dev = 0;
     CHECK(cudaSetDevice(dev));
