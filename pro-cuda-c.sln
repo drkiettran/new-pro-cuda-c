@@ -90,6 +90,12 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "simpleShfl", "chapter05\sim
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "reduceIntegerShfl", "chapter05\reduceIntegerShfl\reduceIntegerShfl.vcxproj", "{6E61E48C-28C8-409D-AAF1-085F1BF8C808}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "compute_occupancy", "chapter03\compute_occupancy\compute_occupancy.vcxproj", "{7ECEF68F-ADF1-4EC3-8C9F-2D7EF0E56D09}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "simple_cublas_example", "tensor_core\simple_cublas_example\simple_cublas_example.vcxproj", "{E75AE0F8-6F44-4F9C-8BC9-233DC7C75DC5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tensor_core", "tensor_core", "{B70D5C3E-158F-43FA-A6B2-78A33857A18E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -244,6 +250,14 @@ Global
 		{6E61E48C-28C8-409D-AAF1-085F1BF8C808}.Debug|x64.Build.0 = Debug|x64
 		{6E61E48C-28C8-409D-AAF1-085F1BF8C808}.Release|x64.ActiveCfg = Release|x64
 		{6E61E48C-28C8-409D-AAF1-085F1BF8C808}.Release|x64.Build.0 = Release|x64
+		{7ECEF68F-ADF1-4EC3-8C9F-2D7EF0E56D09}.Debug|x64.ActiveCfg = Debug|x64
+		{7ECEF68F-ADF1-4EC3-8C9F-2D7EF0E56D09}.Debug|x64.Build.0 = Debug|x64
+		{7ECEF68F-ADF1-4EC3-8C9F-2D7EF0E56D09}.Release|x64.ActiveCfg = Release|x64
+		{7ECEF68F-ADF1-4EC3-8C9F-2D7EF0E56D09}.Release|x64.Build.0 = Release|x64
+		{E75AE0F8-6F44-4F9C-8BC9-233DC7C75DC5}.Debug|x64.ActiveCfg = Debug|x64
+		{E75AE0F8-6F44-4F9C-8BC9-233DC7C75DC5}.Debug|x64.Build.0 = Debug|x64
+		{E75AE0F8-6F44-4F9C-8BC9-233DC7C75DC5}.Release|x64.ActiveCfg = Release|x64
+		{E75AE0F8-6F44-4F9C-8BC9-233DC7C75DC5}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -286,6 +300,8 @@ Global
 		{E9882FF0-B6FB-48ED-95F8-43B23AE989A5} = {44C083BE-5EB2-49B8-9CB7-24A539F22BA2}
 		{EEEFD7BA-D094-4CC1-B4E2-6C61AFE051C9} = {44C083BE-5EB2-49B8-9CB7-24A539F22BA2}
 		{6E61E48C-28C8-409D-AAF1-085F1BF8C808} = {44C083BE-5EB2-49B8-9CB7-24A539F22BA2}
+		{7ECEF68F-ADF1-4EC3-8C9F-2D7EF0E56D09} = {25EE6799-5F70-4EB4-A7DF-27B1989B1191}
+		{E75AE0F8-6F44-4F9C-8BC9-233DC7C75DC5} = {B70D5C3E-158F-43FA-A6B2-78A33857A18E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {499A40F2-B932-406B-B5A5-418DC90A133A}
