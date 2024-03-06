@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include "common.h"
 
+/* section: Checking the data layout of shared memory*/
+
 /*
  * An example of using shared memory to transpose rectangular thread coordinates
  * of a CUDA grid into a global memory array. Different kernels below
@@ -184,7 +186,7 @@ __global__ void setRowReadColDynPad(int* out)
 
 int main(int argc, char** argv)
 {
-    std::cout << "checkSmemRectangle program starts ..." << std::endl;
+    std::cout << "checkSmemRectangle program starts ..." << std::endl << std::fflush;
 
     // set up device
     int dev = 0;
