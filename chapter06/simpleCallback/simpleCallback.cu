@@ -1,23 +1,27 @@
-﻿
-#include "cuda_runtime.h"
+﻿#include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include "common.h"
 #include <stdio.h>
 #include <cuda_runtime.h>
 #include <stdlib.h>
 #include <tclap/CmdLine.h>
+#include <iostream>
 
 /*
- * This example demonstrates submitting work to a CUDA stream in depth-first
- * order. Work submission in depth-first order may introduce false-dependencies
- * between unrelated tasks in different CUDA streams, limiting the parallelism
- * of a CUDA application. kernel_1, kernel_2, kernel_3, and kernel_4 simply
- * implement identical, dummy computation. Separate kernels are used to make the
- * scheduling of these kernels simpler to visualize in the Visual Profiler.
+ * An example of using CUDA callbacks to trigger work on the host after the
+ * completion of asynchronous work on the device. In this example, n_streams
+ * CUDA streams are created and 4 kernels are launched asynchronously in each.
+ * Then, a callback is added at the completion of those asynchronous kernels
+ * that prints diagnostic information.
  */
 
-#define N 300000
+#define N 100000
 #define NSTREAM 4
+
+void CUDART_CB my_callback(cudaStream_t stream, cudaError_t status, void* data)
+{
+    printf("callback from stream %d\n", *((int*)data));
+}
 
 __global__ void kernel_1()
 {
@@ -59,53 +63,29 @@ __global__ void kernel_4()
     }
 }
 
-/*
-* Introducing command line arguments:
-*   -n: number of streams (n_streams)
-*   -b: true/false (switch)
-* 
-*/
-
 int main(int argc, char** argv)
 {
     int n_streams = NSTREAM;
-    int isize = 1;
-    int iblock = 1;
-    bool bigCase = false;
 
     try {
         std::cout << "Processing command line arguments" << std::endl;
         TCLAP::CmdLine cmd(argv[0], ' ', "1.0");
         TCLAP::ValueArg<int> numStreamArg("n", "streams", "Number of streams", true, NSTREAM, "int");
-        TCLAP::SwitchArg bigCaseArg("b", "bigCase", "Big case", cmd, false);
         cmd.add(numStreamArg);
         cmd.parse(argc, argv);
         n_streams = numStreamArg.getValue();
-        bigCase = bigCaseArg.getValue();
         std::cout << "n_stream: " << n_streams << std::endl;
-        std::cout << "big case: " << bigCase << std::endl;
     }
-    catch (TCLAP::ArgException &e) {
+    catch (TCLAP::ArgException& e) {
         std::cerr << "error: " << e.error() << "for arg " << e.argId() << std::endl;
-        std::cout << "runs " << argv[0] << " -n value -b" << std::endl;
         exit(-1);
     }
 
-    setbuf(stdout, NULL); // disable buffering.
-    float elapsed_time;
-
-    // set up max connection
-    char* iname = "CUDA_DEVICE_MAX_CONNECTIONS";
-    // setenv(iname, "32", 1); UNIX ONLY. In the Debugging settings, set the environment var there
-    //_putenv(strcat(iname,"=32"));
-
-    char* ivalue = getenv(iname);
-
-    std::cout << iname << "=" << ivalue << std::endl;
     int dev = 0;
     cudaDeviceProp deviceProp;
     CHECK(cudaGetDeviceProperties(&deviceProp, dev));
-    printf("> Using Device %d: %s with num_streams=%d\n", dev, deviceProp.name, n_streams);
+    printf("> %s Starting...\n", argv[0]);
+    printf("> Using Device %d: %s\n", dev, deviceProp.name);
     CHECK(cudaSetDevice(dev));
 
     // check if device support hyper-q
@@ -127,6 +107,13 @@ int main(int argc, char** argv)
     printf("> Compute Capability %d.%d hardware with %d multi-processors\n",
         deviceProp.major, deviceProp.minor, deviceProp.multiProcessorCount);
 
+    // set up max connectioin
+    char* iname = "CUDA_DEVICE_MAX_CONNECTIONS";
+    //setenv(iname, "8", 1);
+    char* ivalue = getenv(iname);
+    printf("> %s = %s\n", iname, ivalue);
+    printf("> with streams = %d\n", n_streams);
+
     // Allocate and initialize an array of stream handles
     cudaStream_t* streams = (cudaStream_t*)malloc(n_streams * sizeof(
         cudaStream_t));
@@ -136,41 +123,34 @@ int main(int argc, char** argv)
         CHECK(cudaStreamCreate(&(streams[i])));
     }
 
-    // run kernel with more threads
-    if (bigCase)
-    {
-        iblock = 512;
-        isize = 1 << 12;
-    }
+    dim3 block(1);
+    dim3 grid(1);
+    cudaEvent_t start_event, stop_event;
+    CHECK(cudaEventCreate(&start_event));
+    CHECK(cudaEventCreate(&stop_event));
 
-    // set up execution configuration
-    dim3 block(iblock);
-    dim3 grid(isize / iblock);
-    printf("> grid %d block %d\n", grid.x, block.x);
+    // int stream_ids[n_streams];
+    int* stream_ids = NULL;
+    CHECK(cudaHostAlloc((cudaStream_t**)&stream_ids, n_streams * sizeof(int), cudaHostAllocDefault));
 
-    // creat events
-    cudaEvent_t start, stop;
-    CHECK(cudaEventCreate(&start));
-    CHECK(cudaEventCreate(&stop));
+    CHECK(cudaEventRecord(start_event, 0));
 
-    // record start event
-    CHECK(cudaEventRecord(start, 0));
-
-    // dispatch job with depth first ordering
     for (int i = 0; i < n_streams; i++)
     {
+        stream_ids[i] = i;
         kernel_1 << <grid, block, 0, streams[i] >> > ();
         kernel_2 << <grid, block, 0, streams[i] >> > ();
         kernel_3 << <grid, block, 0, streams[i] >> > ();
         kernel_4 << <grid, block, 0, streams[i] >> > ();
+        CHECK(cudaStreamAddCallback(streams[i], my_callback,
+            (void*)(stream_ids + i), 0));
     }
 
-    // record stop event
-    CHECK(cudaEventRecord(stop, 0));
-    CHECK(cudaEventSynchronize(stop));
+    CHECK(cudaEventRecord(stop_event, 0));
+    CHECK(cudaEventSynchronize(stop_event));
 
-    // calculate elapsed time
-    CHECK(cudaEventElapsedTime(&elapsed_time, start, stop));
+    float elapsed_time;
+    CHECK(cudaEventElapsedTime(&elapsed_time, start_event, stop_event));
     printf("Measured time for parallel execution = %.3fs\n",
         elapsed_time / 1000.0f);
 
@@ -182,11 +162,10 @@ int main(int argc, char** argv)
 
     free(streams);
 
-    // destroy events
-    CHECK(cudaEventDestroy(start));
-    CHECK(cudaEventDestroy(stop));
-
-    // reset device
+    /*
+     * cudaDeviceReset must be called before exiting in order for profiling and
+     * tracing tools such as Nsight and Visual Profiler to show complete traces.
+     */
     CHECK(cudaDeviceReset());
 
     return 0;

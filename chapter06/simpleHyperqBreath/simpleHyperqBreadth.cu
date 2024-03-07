@@ -6,14 +6,16 @@
 #include <cuda_runtime.h>
 #include <stdlib.h>
 #include <tclap/CmdLine.h>
+#include <iostream>
+
 
 /*
- * This example demonstrates submitting work to a CUDA stream in depth-first
- * order. Work submission in depth-first order may introduce false-dependencies
- * between unrelated tasks in different CUDA streams, limiting the parallelism
- * of a CUDA application. kernel_1, kernel_2, kernel_3, and kernel_4 simply
- * implement identical, dummy computation. Separate kernels are used to make the
- * scheduling of these kernels simpler to visualize in the Visual Profiler.
+ * This example demonstrates submitting work to a CUDA stream in breadth-first
+ * order. Work submission in breadth-first order prevents false-dependencies
+ * from reducing the parallelism of an application. kernel_1, kernel_2,
+ * kernel_3, and kernel_4 simply implement identical, dummy computation.
+ * Separate kernels are used to make the scheduling of these kernels simpler to
+ * visualize in the Visual Profiler.
  */
 
 #define N 300000
@@ -59,15 +61,12 @@ __global__ void kernel_4()
     }
 }
 
-/*
-* Introducing command line arguments:
-*   -n: number of streams (n_streams)
-*   -b: true/false (switch)
-* 
-*/
-
 int main(int argc, char** argv)
 {
+    setbuf(stdout, NULL); // disable buffering.
+    // printf("Run program as follows:\n");
+    // printf("%s [num streams] [bigcase (0/1)]\n\n", argv[0]);
+
     int n_streams = NSTREAM;
     int isize = 1;
     int iblock = 1;
@@ -85,27 +84,27 @@ int main(int argc, char** argv)
         std::cout << "n_stream: " << n_streams << std::endl;
         std::cout << "big case: " << bigCase << std::endl;
     }
-    catch (TCLAP::ArgException &e) {
+    catch (TCLAP::ArgException& e) {
         std::cerr << "error: " << e.error() << "for arg " << e.argId() << std::endl;
         std::cout << "runs " << argv[0] << " -n value -b" << std::endl;
         exit(-1);
     }
 
-    setbuf(stdout, NULL); // disable buffering.
+
+    // get argument from command line
     float elapsed_time;
 
-    // set up max connection
+    // set up max connectioin
     char* iname = "CUDA_DEVICE_MAX_CONNECTIONS";
-    // setenv(iname, "32", 1); UNIX ONLY. In the Debugging settings, set the environment var there
-    //_putenv(strcat(iname,"=32"));
-
+    // setenv(iname, "32", 1);
     char* ivalue = getenv(iname);
+    printf("%s = %s\n", iname, ivalue);
 
-    std::cout << iname << "=" << ivalue << std::endl;
     int dev = 0;
     cudaDeviceProp deviceProp;
     CHECK(cudaGetDeviceProperties(&deviceProp, dev));
-    printf("> Using Device %d: %s with num_streams=%d\n", dev, deviceProp.name, n_streams);
+    printf("> Using Device %d: %s with num_streams %d\n", dev, deviceProp.name,
+        n_streams);
     CHECK(cudaSetDevice(dev));
 
     // check if device support hyper-q
@@ -156,14 +155,18 @@ int main(int argc, char** argv)
     // record start event
     CHECK(cudaEventRecord(start, 0));
 
-    // dispatch job with depth first ordering
+    // dispatch job with breadth first ordering
     for (int i = 0; i < n_streams; i++)
-    {
         kernel_1 << <grid, block, 0, streams[i] >> > ();
+
+    for (int i = 0; i < n_streams; i++)
         kernel_2 << <grid, block, 0, streams[i] >> > ();
+
+    for (int i = 0; i < n_streams; i++)
         kernel_3 << <grid, block, 0, streams[i] >> > ();
+
+    for (int i = 0; i < n_streams; i++)
         kernel_4 << <grid, block, 0, streams[i] >> > ();
-    }
 
     // record stop event
     CHECK(cudaEventRecord(stop, 0));
