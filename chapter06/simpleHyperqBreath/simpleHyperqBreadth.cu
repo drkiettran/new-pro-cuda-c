@@ -70,26 +70,33 @@ int main(int argc, char** argv)
     int n_streams = NSTREAM;
     int isize = 1;
     int iblock = 1;
-    bool bigCase = false;
 
     try {
-        std::cout << "Processing command line arguments" << std::endl;
         TCLAP::CmdLine cmd(argv[0], ' ', "1.0");
         TCLAP::ValueArg<int> numStreamArg("n", "streams", "Number of streams", true, NSTREAM, "int");
-        TCLAP::SwitchArg bigCaseArg("b", "bigCase", "Big case", cmd, false);
+        TCLAP::ValueArg<int> sizeArg("s", "size", "Number of threads (exponential)", true, 1, "int");
+        TCLAP::ValueArg<int> blockArg("b", "block", "Number of threads per block", true, 1, "int");
+
         cmd.add(numStreamArg);
+        cmd.add(sizeArg);
+        cmd.add(blockArg);
         cmd.parse(argc, argv);
+
         n_streams = numStreamArg.getValue();
-        bigCase = bigCaseArg.getValue();
+        iblock = blockArg.getValue();
+        isize = sizeArg.getValue();
+
         std::cout << "n_stream: " << n_streams << std::endl;
-        std::cout << "big case: " << bigCase << std::endl;
+        std::cout << "isize: " << isize << std::endl;
+        std::cout << "iblock: " << iblock << std::endl;
     }
     catch (TCLAP::ArgException& e) {
         std::cerr << "error: " << e.error() << "for arg " << e.argId() << std::endl;
-        std::cout << "runs " << argv[0] << " -n value -b" << std::endl;
+        std::cout << "runs " << argv[0] << " -n value -b blocksize -s thread-size(power)" << std::endl;
         exit(-1);
     }
 
+    isize <<= isize;
 
     // get argument from command line
     float elapsed_time;
@@ -136,11 +143,8 @@ int main(int argc, char** argv)
     }
 
     // run kernel with more threads
-    if (bigCase)
-    {
-        iblock = 512;
-        isize = 1 << 12;
-    }
+    // iblock = 512;
+    // isize = 1 << 12;
 
     // set up execution configuration
     dim3 block(iblock);
@@ -157,16 +161,16 @@ int main(int argc, char** argv)
 
     // dispatch job with breadth first ordering
     for (int i = 0; i < n_streams; i++)
-        kernel_1 << <grid, block, 0, streams[i] >> > ();
+        kernel_1 <<<grid, block, 0, streams[i] >> > ();
 
     for (int i = 0; i < n_streams; i++)
-        kernel_2 << <grid, block, 0, streams[i] >> > ();
+        kernel_2 <<<grid, block, 0, streams[i] >>> ();
 
     for (int i = 0; i < n_streams; i++)
-        kernel_3 << <grid, block, 0, streams[i] >> > ();
+        kernel_3 <<<grid, block, 0, streams[i] >>> ();
 
     for (int i = 0; i < n_streams; i++)
-        kernel_4 << <grid, block, 0, streams[i] >> > ();
+        kernel_4 <<<grid, block, 0, streams[i] >>> ();
 
     // record stop event
     CHECK(cudaEventRecord(stop, 0));
