@@ -28,6 +28,7 @@
 
 __global__ void kernel_1()
 {
+    unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
     double sum = 0.0;
 
     for (int i = 0; i < N; i++)
@@ -38,6 +39,7 @@ __global__ void kernel_1()
 
 __global__ void kernel_2()
 {
+    unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
     double sum = 0.0;
 
     for (int i = 0; i < N; i++)
@@ -48,6 +50,8 @@ __global__ void kernel_2()
 
 __global__ void kernel_3()
 {
+    unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
     double sum = 0.0;
 
     for (int i = 0; i < N; i++)
@@ -58,6 +62,7 @@ __global__ void kernel_3()
 
 __global__ void kernel_4()
 {
+    unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
     double sum = 0.0;
 
     for (int i = 0; i < N; i++)
@@ -163,9 +168,13 @@ int main(int argc, char** argv)
     // dispatch job with depth first ordering
     for (int i = 0; i < n_streams; i++)
     {
+        printf("launching kernel_1 ...\n");
         kernel_1 <<<grid, block, 0, streams[i] >>> ();
+        printf("launching kernel_2 ...\n");
         kernel_2 <<<grid, block, 0, streams[i] >>> ();
+        printf("launching kernel_3 ...\n");
         kernel_3 <<<grid, block, 0, streams[i] >>> ();
+        printf("launching kernel_4 ...\n");
         kernel_4 <<<grid, block, 0, streams[i] >>> ();
     }
 
