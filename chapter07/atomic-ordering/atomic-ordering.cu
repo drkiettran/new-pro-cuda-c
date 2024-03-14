@@ -2,6 +2,7 @@
 #include "device_launch_parameters.h"
 #include "common.h"
 #include <stdio.h>
+#include <cusparse_v2.h>
 #include <cuda_runtime.h>
 #include <stdlib.h>
 #include <tclap/CmdLine.h>
