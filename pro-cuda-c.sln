@@ -10,6 +10,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter02", "chapter02", "{0CDB222D-5BB2-4520-9934-F564E7AFA75A}"
 	ProjectSection(SolutionItems) = preProject
 		programming_notes.txt = programming_notes.txt
+		readme.md = readme.md
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "checkDimension", "chapter02\checkDimension\checkDimension.vcxproj", "{FA08ED75-686E-4E33-8716-6D54660EAC8B}"
@@ -31,6 +32,9 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "checkDeviceInfor", "chapter02\checkDeviceInfor\checkDeviceInfor.vcxproj", "{401C73A4-02F0-4474-8187-96BC5DE0773B}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter03", "chapter03", "{25EE6799-5F70-4EB4-A7DF-27B1989B1191}"
+	ProjectSection(SolutionItems) = preProject
+		readme.md = readme.md
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "simpleDivergence", "chapter03\simpleDivergence\simpleDivergence.vcxproj", "{49CDC2EF-415C-44F1-A329-45216C582003}"
 EndProject
@@ -51,6 +55,9 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "nestedReduce2", "chapter03\nestedReduce2\nestedReduce2.vcxproj", "{A598BD9B-F1AA-4BC6-9BC8-7E6C28EF8483}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter04", "chapter04", "{204B7904-009A-46EB-98F7-BED8C874D42A}"
+	ProjectSection(SolutionItems) = preProject
+		readme.md = readme.md
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "globalVariable", "chapter04\globalVariable\globalVariable.vcxproj", "{1896BDA8-5F8D-4109-BC18-AF546E3FBD41}"
 EndProject
@@ -73,6 +80,9 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sumMatrixGPUManual", "chapter04\sumMatrixGPUManual\sumMatrixGPUManual.vcxproj", "{6B3A3E83-66FE-4D09-82B0-689C25082BCE}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter05", "chapter05", "{44C083BE-5EB2-49B8-9CB7-24A539F22BA2}"
+	ProjectSection(SolutionItems) = preProject
+		readme.md = readme.md
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "checkSmemSquare", "chapter05\checkSmemSquare\checkSmemSquare.vcxproj", "{1A690538-DCBB-47C9-8494-E1C300A2EB62}"
 EndProject
@@ -97,14 +107,29 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tensor_core", "tensor_core", "{B70D5C3E-158F-43FA-A6B2-78A33857A18E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter06", "chapter06", "{304740A5-E779-43C2-A6E2-CE8C687D93CA}"
+	ProjectSection(SolutionItems) = preProject
+		readme.md = readme.md
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter07", "chapter07", "{4181DC7F-C97C-4C26-90FD-00526ABE3960}"
+	ProjectSection(SolutionItems) = preProject
+		readme.md = readme.md
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter08", "chapter08", "{49772A9F-40A3-4E7E-AB3F-ABAD2B36770B}"
+	ProjectSection(SolutionItems) = preProject
+		readme.md = readme.md
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter09", "chapter09", "{BB3FF1C7-9763-4FDD-BB74-2FDD33C4D48E}"
+	ProjectSection(SolutionItems) = preProject
+		readme.md = readme.md
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter10", "chapter10", "{B5EFF688-7143-4821-9ADC-F85D810A6F75}"
+	ProjectSection(SolutionItems) = preProject
+		readme.md = readme.md
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "simpleHyperqDepth", "chapter06\simpleHyperqDepth\simpleHyperqDepth.vcxproj", "{FBEB1304-DF42-4C04-B0C7-99183DEDBE43}"
 EndProject
@@ -166,7 +191,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "simple-data", "chapter08\si
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "simple-parallel", "chatper08\simple-parallel\simple-parallel.vcxproj", "{747E73E8-DCEB-4C05-836D-08B2ABB42630}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "simple-kernels", "chapter08\simple-kernel\simple-kernel.vcxproj", "{7193603E-7CD4-470E-B3AD-032E4D3BADF7}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "foo", "chapter07\foo\foo.vcxproj", "{2429F979-8A92-404F-90F0-D679E0B83946}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -728,14 +753,14 @@ Global
 		{747E73E8-DCEB-4C05-836D-08B2ABB42630}.Release|x64.Build.0 = Release|x64
 		{747E73E8-DCEB-4C05-836D-08B2ABB42630}.Release|x86.ActiveCfg = Release|x64
 		{747E73E8-DCEB-4C05-836D-08B2ABB42630}.Release|x86.Build.0 = Release|x64
-		{7193603E-7CD4-470E-B3AD-032E4D3BADF7}.Debug|x64.ActiveCfg = Debug|x64
-		{7193603E-7CD4-470E-B3AD-032E4D3BADF7}.Debug|x64.Build.0 = Debug|x64
-		{7193603E-7CD4-470E-B3AD-032E4D3BADF7}.Debug|x86.ActiveCfg = Debug|x64
-		{7193603E-7CD4-470E-B3AD-032E4D3BADF7}.Debug|x86.Build.0 = Debug|x64
-		{7193603E-7CD4-470E-B3AD-032E4D3BADF7}.Release|x64.ActiveCfg = Release|x64
-		{7193603E-7CD4-470E-B3AD-032E4D3BADF7}.Release|x64.Build.0 = Release|x64
-		{7193603E-7CD4-470E-B3AD-032E4D3BADF7}.Release|x86.ActiveCfg = Release|x64
-		{7193603E-7CD4-470E-B3AD-032E4D3BADF7}.Release|x86.Build.0 = Release|x64
+		{2429F979-8A92-404F-90F0-D679E0B83946}.Debug|x64.ActiveCfg = Debug|x64
+		{2429F979-8A92-404F-90F0-D679E0B83946}.Debug|x64.Build.0 = Debug|x64
+		{2429F979-8A92-404F-90F0-D679E0B83946}.Debug|x86.ActiveCfg = Debug|x64
+		{2429F979-8A92-404F-90F0-D679E0B83946}.Debug|x86.Build.0 = Debug|x64
+		{2429F979-8A92-404F-90F0-D679E0B83946}.Release|x64.ActiveCfg = Release|x64
+		{2429F979-8A92-404F-90F0-D679E0B83946}.Release|x64.Build.0 = Release|x64
+		{2429F979-8A92-404F-90F0-D679E0B83946}.Release|x86.ActiveCfg = Release|x64
+		{2429F979-8A92-404F-90F0-D679E0B83946}.Release|x86.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -809,7 +834,7 @@ Global
 		{589FF92B-A2C6-4D2D-94AE-EDFDF2DD8CE6} = {49772A9F-40A3-4E7E-AB3F-ABAD2B36770B}
 		{2B5EE52E-CB3B-4CEB-BA69-673DCE39B2ED} = {49772A9F-40A3-4E7E-AB3F-ABAD2B36770B}
 		{747E73E8-DCEB-4C05-836D-08B2ABB42630} = {49772A9F-40A3-4E7E-AB3F-ABAD2B36770B}
-		{7193603E-7CD4-470E-B3AD-032E4D3BADF7} = {49772A9F-40A3-4E7E-AB3F-ABAD2B36770B}
+		{2429F979-8A92-404F-90F0-D679E0B83946} = {4181DC7F-C97C-4C26-90FD-00526ABE3960}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {499A40F2-B932-406B-B5A5-418DC90A133A}

@@ -1,0 +1,10 @@
+# Chapter 6 Sample Programs
+
+1. simpleHyperqDepth.cu (Concurrent Kernel Execution)
+2. simpleHyperqBreadth.cu (Concurrent Kernel Execution)
+3. simpleHyperqOpenmp.cu (Concurrent Kernel Execution)
+4. simpleHyperqDependence.cu (Concurrent Kernel Execution)
+5. simpleMultiAddDepth.cu (Overlapping kernel execution & data transfer)
+6. simpleMultiAddBreadth.cu (Overlapping kernel execution & data transfer)
+7. syncAPI.cu (Overlapping GPU and CPU Execution)
+8. simpleCallback.cu (Stream Callbacks)
