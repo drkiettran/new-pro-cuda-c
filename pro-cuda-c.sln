@@ -193,6 +193,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "simple-parallel", "chatper0
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "foo", "chapter07\foo\foo.vcxproj", "{2429F979-8A92-404F-90F0-D679E0B83946}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Example_1", "chapter01\Example_1\Example_1.vcxproj", "{5F69AFB2-2588-4098-8CDB-1FEC1694AE28}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -761,6 +763,14 @@ Global
 		{2429F979-8A92-404F-90F0-D679E0B83946}.Release|x64.Build.0 = Release|x64
 		{2429F979-8A92-404F-90F0-D679E0B83946}.Release|x86.ActiveCfg = Release|x64
 		{2429F979-8A92-404F-90F0-D679E0B83946}.Release|x86.Build.0 = Release|x64
+		{5F69AFB2-2588-4098-8CDB-1FEC1694AE28}.Debug|x64.ActiveCfg = Debug|x64
+		{5F69AFB2-2588-4098-8CDB-1FEC1694AE28}.Debug|x64.Build.0 = Debug|x64
+		{5F69AFB2-2588-4098-8CDB-1FEC1694AE28}.Debug|x86.ActiveCfg = Debug|x64
+		{5F69AFB2-2588-4098-8CDB-1FEC1694AE28}.Debug|x86.Build.0 = Debug|x64
+		{5F69AFB2-2588-4098-8CDB-1FEC1694AE28}.Release|x64.ActiveCfg = Release|x64
+		{5F69AFB2-2588-4098-8CDB-1FEC1694AE28}.Release|x64.Build.0 = Release|x64
+		{5F69AFB2-2588-4098-8CDB-1FEC1694AE28}.Release|x86.ActiveCfg = Release|x64
+		{5F69AFB2-2588-4098-8CDB-1FEC1694AE28}.Release|x86.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -835,6 +845,7 @@ Global
 		{2B5EE52E-CB3B-4CEB-BA69-673DCE39B2ED} = {49772A9F-40A3-4E7E-AB3F-ABAD2B36770B}
 		{747E73E8-DCEB-4C05-836D-08B2ABB42630} = {49772A9F-40A3-4E7E-AB3F-ABAD2B36770B}
 		{2429F979-8A92-404F-90F0-D679E0B83946} = {4181DC7F-C97C-4C26-90FD-00526ABE3960}
+		{5F69AFB2-2588-4098-8CDB-1FEC1694AE28} = {C89CACD1-0223-4E4F-80C9-8FD8BB01A4CB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {499A40F2-B932-406B-B5A5-418DC90A133A}
