@@ -195,6 +195,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "foo", "chapter07\foo\foo.vc
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Example_1", "chapter01\Example_1\Example_1.vcxproj", "{5F69AFB2-2588-4098-8CDB-1FEC1694AE28}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sumArrayOnHost", "chapter02\sumArrayOnHost\sumArrayOnHost.vcxproj", "{1CAE8259-B40B-4DE1-811C-75F005FB500E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -771,6 +773,14 @@ Global
 		{5F69AFB2-2588-4098-8CDB-1FEC1694AE28}.Release|x64.Build.0 = Release|x64
 		{5F69AFB2-2588-4098-8CDB-1FEC1694AE28}.Release|x86.ActiveCfg = Release|x64
 		{5F69AFB2-2588-4098-8CDB-1FEC1694AE28}.Release|x86.Build.0 = Release|x64
+		{1CAE8259-B40B-4DE1-811C-75F005FB500E}.Debug|x64.ActiveCfg = Debug|x64
+		{1CAE8259-B40B-4DE1-811C-75F005FB500E}.Debug|x64.Build.0 = Debug|x64
+		{1CAE8259-B40B-4DE1-811C-75F005FB500E}.Debug|x86.ActiveCfg = Debug|x64
+		{1CAE8259-B40B-4DE1-811C-75F005FB500E}.Debug|x86.Build.0 = Debug|x64
+		{1CAE8259-B40B-4DE1-811C-75F005FB500E}.Release|x64.ActiveCfg = Release|x64
+		{1CAE8259-B40B-4DE1-811C-75F005FB500E}.Release|x64.Build.0 = Release|x64
+		{1CAE8259-B40B-4DE1-811C-75F005FB500E}.Release|x86.ActiveCfg = Release|x64
+		{1CAE8259-B40B-4DE1-811C-75F005FB500E}.Release|x86.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -846,6 +856,7 @@ Global
 		{747E73E8-DCEB-4C05-836D-08B2ABB42630} = {49772A9F-40A3-4E7E-AB3F-ABAD2B36770B}
 		{2429F979-8A92-404F-90F0-D679E0B83946} = {4181DC7F-C97C-4C26-90FD-00526ABE3960}
 		{5F69AFB2-2588-4098-8CDB-1FEC1694AE28} = {C89CACD1-0223-4E4F-80C9-8FD8BB01A4CB}
+		{1CAE8259-B40B-4DE1-811C-75F005FB500E} = {0CDB222D-5BB2-4520-9934-F564E7AFA75A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {499A40F2-B932-406B-B5A5-418DC90A133A}

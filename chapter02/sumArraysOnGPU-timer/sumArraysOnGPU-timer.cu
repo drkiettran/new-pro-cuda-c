@@ -5,6 +5,7 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include "common.h"
+#include <tclap/CmdLine.h>
 
 /*
  * This example demonstrates a simple vector sum on the GPU and on the host.
@@ -65,15 +66,28 @@ __global__ void sumArraysOnGPU(float* A, float* B, float* C, const int N)
     if (i < N) C[i] = A[i] + B[i];
 }
 
+void getArgs(int argc, char** argv, int& n, int& b) {
+    try {
+        TCLAP::CmdLine cmd("MyProgram - A sample C++ program", ' ', "1.0");
+
+        TCLAP::ValueArg<int> nArg("n", "num-elem", "Number of elements", false, 512, "int");
+        TCLAP::ValueArg<int> bArg("b", "block-size", "Number of threads per block", false, 512, "int");
+        cmd.add(bArg);
+        cmd.add(nArg);
+        cmd.parse(argc, argv);
+        b = bArg.getValue();
+        n = nArg.getValue();
+    }
+    catch (TCLAP::ArgException& e) {
+        std::cerr << "Error: " << e.error() << " for argument " << e.argId() << std::endl;
+    }
+}
+
 int main(int argc, char** argv)
 {
-    int block_x = 512;
+    int block_x, n;
     std::chrono::steady_clock::time_point begin;
-
-    if (argc > 1) {
-        block_x = atoi(argv[1]);
-    }
-
+    getArgs(argc, argv, n, block_x);
     printf("%s Starting... with block.x = %d\n", argv[0], block_x);
 
     // set up device
@@ -84,11 +98,10 @@ int main(int argc, char** argv)
     CHECK(cudaSetDevice(dev));
 
     // set up data size of vectors
-    int nElem = 1 << 24;
-    printf("Vector size %d\n", nElem);
+    printf("Vector size %d\n", n);
 
     // malloc host memory
-    size_t nBytes = nElem * sizeof(float);
+    size_t nBytes = n * sizeof(float);
 
     float* h_A, * h_B, * hostRef, * gpuRef;
     h_A = (float*)malloc(nBytes);
@@ -98,8 +111,8 @@ int main(int argc, char** argv)
 
     // initialize data at host side
     begin = StartTimer();
-    initialData(h_A, nElem);
-    initialData(h_B, nElem);
+    initialData(h_A, n);
+    initialData(h_B, n);
     std::cout << "Initialize Arrays on Host: " << GetDurationInMilliSeconds(begin, StopTimer()) << " ms" << std::endl;
 
     memset(hostRef, 0, nBytes);
@@ -107,7 +120,7 @@ int main(int argc, char** argv)
 
     // add vector at host side for result checks
     begin = StartTimer();
-    sumArraysOnHost(h_A, h_B, hostRef, nElem);
+    sumArraysOnHost(h_A, h_B, hostRef, n);
     std::cout << "Sum Arrays on Host: " << GetDurationInMilliSeconds(begin, StopTimer()) << " ms" << std::endl;
 
     // malloc device global memory
@@ -122,12 +135,12 @@ int main(int argc, char** argv)
     CHECK(cudaMemcpy(d_C, gpuRef, nBytes, cudaMemcpyHostToDevice));
 
     // invoke kernel at host side
-    int iLen = block_x; // 512;
+    int iLen = block_x;
     dim3 block(iLen);
-    dim3 grid((nElem + block.x - 1) / block.x);
+    dim3 grid((n + block.x - 1) / block.x);
 
     begin = StartTimer();
-    sumArraysOnGPU << <grid, block >> > (d_A, d_B, d_C, nElem);
+    sumArraysOnGPU << <grid, block >> > (d_A, d_B, d_C, n);
     std::cout << "Sum Arrays on GPU: " << GetDurationInMilliSeconds(begin, StopTimer()) << " ms" << std::endl;
 
     CHECK(cudaDeviceSynchronize());
@@ -138,7 +151,7 @@ int main(int argc, char** argv)
     CHECK(cudaMemcpy(gpuRef, d_C, nBytes, cudaMemcpyDeviceToHost));
 
     // check device results
-    checkResult(hostRef, gpuRef, nElem);
+    checkResult(hostRef, gpuRef, n);
 
     // free device global memory
     CHECK(cudaFree(d_A));

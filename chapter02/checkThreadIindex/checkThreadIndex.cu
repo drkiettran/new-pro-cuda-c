@@ -4,17 +4,19 @@
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
+#include "common.h"
+#include <tclap/CmdLine.h>
 
-#define CHECK(call)                                                            \
-{                                                                              \
-    const cudaError_t error = call;                                            \
-    if (error != cudaSuccess)                                                  \
-    {                                                                          \
-        fprintf(stderr, "Error: %s:%d, ", __FILE__, __LINE__);                 \
-        fprintf(stderr, "code: %d, reason: %s\n", error,                       \
-                cudaGetErrorString(error));                                    \
-    }                                                                          \
-}
+//#define CHECK(call)                                                            \
+//{                                                                              \
+//    const cudaError_t error = call;                                            \
+//    if (error != cudaSuccess)                                                  \
+//    {                                                                          \
+//        fprintf(stderr, "Error: %s:%d, ", __FILE__, __LINE__);                 \
+//        fprintf(stderr, "code: %d, reason: %s\n", error,                       \
+//                cudaGetErrorString(error));                                    \
+//    }                                                                          \
+//}
 
 /*
  * This example helps to visualize the relationship between thread/block IDs and
@@ -56,10 +58,28 @@ __global__ void printThreadIndex(int* A, const int nx, const int ny)
         ix, iy, idx, A[idx]);
 }
 
+void getArgs(int argc, char** argv, int& x, int& y) {
+    try {
+        TCLAP::CmdLine cmd("MyProgram - A sample C++ program", ' ', "1.0");
+
+        TCLAP::ValueArg<int> xArg("x", "cols", "Number of columns", false, 8, "int");
+        TCLAP::ValueArg<int> yArg("y", "rows", "Number of rows", false, 6, "int");
+        cmd.add(xArg);
+        cmd.add(yArg);
+        cmd.parse(argc, argv);
+        x = xArg.getValue();
+        y = yArg.getValue();
+    }
+    catch (TCLAP::ArgException& e) {
+        std::cerr << "Error: " << e.error() << " for argument " << e.argId() << std::endl;
+    }
+}
+
 int main(int argc, char** argv)
 {
+    int nx, ny;
     printf("%s Starting...\n", argv[0]);
-
+    getArgs(argc, argv, nx, ny);
     // get device information
     int dev = 0;
     cudaDeviceProp deviceProp;
@@ -68,8 +88,6 @@ int main(int argc, char** argv)
     CHECK(cudaSetDevice(dev));
 
     // set matrix dimension
-    int nx = 8;
-    int ny = 6;
     int nxy = nx * ny;
     int nBytes = nxy * sizeof(float);
 

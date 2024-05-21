@@ -11,8 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{58AB5A65-B5BD-48E6-93A8-7A00E62F5F7C}</ProjectGuid>
-    <RootNamespace>defineGridBlock</RootNamespace>
+    <ProjectGuid>{1CAE8259-B40B-4DE1-811C-75F005FB500E}</ProjectGuid>
+    <RootNamespace>sumArrayOnHost</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -56,7 +56,6 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
-      <Include>./;../../Common;%(Include)</Include>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -79,7 +78,7 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CudaCompile Include="defineGridBlock.cu" />
+    <CudaCompile Include="sumArrayOnHost.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

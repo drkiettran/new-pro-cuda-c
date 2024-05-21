@@ -5,6 +5,7 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include "common.h"
+#include <tclap/CmdLine.h>
 
 
 /*
@@ -89,10 +90,28 @@ __global__ void sumMatrixOnGPU1D(float* MatA, float* MatB, float* MatC, int nx,
 
 }
 
+void getArgs(int argc, char** argv, int& x, int& y) {
+    try {
+        TCLAP::CmdLine cmd("MyProgram - A sample C++ program", ' ', "1.0");
+
+        TCLAP::ValueArg<int> xArg("x", "cols", "Number of columns", false, 8, "int");
+        TCLAP::ValueArg<int> yArg("y", "rows", "Number of rows", false, 8, "int");
+        cmd.add(xArg);
+        cmd.add(yArg);
+        cmd.parse(argc, argv);
+        x = xArg.getValue();
+        y = yArg.getValue();
+    }
+    catch (TCLAP::ArgException& e) {
+        std::cerr << "Error: " << e.error() << " for argument " << e.argId() << std::endl;
+    }
+}
+
 int main(int argc, char** argv)
 {
+    int x, y;
     printf("%s Starting...\n", argv[0]);
-
+    getArgs(argc, argv, x, y);
     std::chrono::steady_clock::time_point begin;
     // set up device
     int dev = 0;
@@ -102,8 +121,8 @@ int main(int argc, char** argv)
     CHECK(cudaSetDevice(dev));
 
     // set up data size of matrix
-    int nx = 1 << 14;
-    int ny = 1 << 14;
+    int nx = 1 << x;
+    int ny = 1 << y;
 
     int nxy = nx * ny;
     int nBytes = nxy * sizeof(float);
