@@ -1,5 +1,6 @@
 Chapter 2:
 
+0. sumArrayOnHost.cpp
 1. checkDimension.cu (Organizing Threads)
 2. defineGridBlock.cu (Organizing Threads)
 3. sumArraysOnGPU-small-case.cu (Compiling & Executing)
@@ -14,3 +15,49 @@ Chapter 2:
 2. Run all code
 3. Debugging code
 4. Profile the code.
+
+C:\dev\cisc701\new-pro-cuda-c\tclap-1.4.0-rc1\include
+../../../new-pro-cuda-c/Common/
+C:\Program Files (x86)\Microsoft SDKs\MPI\Include\
+C:\Program Files (x86)\Microsoft SDKs\MPI\Lib\x64
+
+Build on Linux:  g++ -g -I ../../Common -I ../../tclap-1.4.0-rc1/include sumArrayOnHost sumArrayOnHost.cpp
+
+.vscode/c_cpp_properties.json:
+
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "../../Common",
+                "../../tclap-1.4.0-rc1/include"
+
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c17",
+            "cppStandard": "gnu++14",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}
+
+.vscode/launch.json
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [ 
+        {
+            "name": "CUDA C++: Launch",
+            "type": "cuda-gdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/sumArrayOnHost",
+            "args": ""
+        }
+    ]
+}

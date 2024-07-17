@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.34511.84
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter01", "chapter01", "{C89CACD1-0223-4E4F-80C9-8FD8BB01A4CB}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter01-Heterogeneous-parallel-computing-with-cuda", "chapter01-Heterogeneous-parallel-computing-with-cuda", "{C89CACD1-0223-4E4F-80C9-8FD8BB01A4CB}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "helloworld", "chapter01\helloworld\helloworld.vcxproj", "{5E7F912D-CE1A-4840-A65B-D2800FBD8548}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter02", "chapter02", "{0CDB222D-5BB2-4520-9934-F564E7AFA75A}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter02-cuda-programming-model", "chapter02-cuda-programming-model", "{0CDB222D-5BB2-4520-9934-F564E7AFA75A}"
 	ProjectSection(SolutionItems) = preProject
 		programming_notes.txt = programming_notes.txt
 		readme.md = readme.md
@@ -31,7 +31,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sumMatrixOnGPU-2D-grid-1D-b
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "checkDeviceInfor", "chapter02\checkDeviceInfor\checkDeviceInfor.vcxproj", "{401C73A4-02F0-4474-8187-96BC5DE0773B}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter03", "chapter03", "{25EE6799-5F70-4EB4-A7DF-27B1989B1191}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter03-cuda-execution-model", "chapter03-cuda-execution-model", "{25EE6799-5F70-4EB4-A7DF-27B1989B1191}"
 	ProjectSection(SolutionItems) = preProject
 		readme.md = readme.md
 	EndProjectSection
@@ -54,7 +54,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "nestedReduceNoSync", "chapt
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "nestedReduce2", "chapter03\nestedReduce2\nestedReduce2.vcxproj", "{A598BD9B-F1AA-4BC6-9BC8-7E6C28EF8483}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter04", "chapter04", "{204B7904-009A-46EB-98F7-BED8C874D42A}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter04-cuda-global-memory", "chapter04-cuda-global-memory", "{204B7904-009A-46EB-98F7-BED8C874D42A}"
 	ProjectSection(SolutionItems) = preProject
 		readme.md = readme.md
 	EndProjectSection
@@ -79,7 +79,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sumMatrixGPUManaged", "chap
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sumMatrixGPUManual", "chapter04\sumMatrixGPUManual\sumMatrixGPUManual.vcxproj", "{6B3A3E83-66FE-4D09-82B0-689C25082BCE}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter05", "chapter05", "{44C083BE-5EB2-49B8-9CB7-24A539F22BA2}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter05-cuda-shared-memory-and-constant-memory", "chapter05-cuda-shared-memory-and-constant-memory", "{44C083BE-5EB2-49B8-9CB7-24A539F22BA2}"
 	ProjectSection(SolutionItems) = preProject
 		readme.md = readme.md
 	EndProjectSection
@@ -106,27 +106,27 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "simple_cublas_example", "te
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tensor_core", "tensor_core", "{B70D5C3E-158F-43FA-A6B2-78A33857A18E}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter06", "chapter06", "{304740A5-E779-43C2-A6E2-CE8C687D93CA}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter06-cuda-streams-and-concurrency", "chapter06-cuda-streams-and-concurrency", "{304740A5-E779-43C2-A6E2-CE8C687D93CA}"
 	ProjectSection(SolutionItems) = preProject
 		readme.md = readme.md
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter07", "chapter07", "{4181DC7F-C97C-4C26-90FD-00526ABE3960}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter07-cuda-instruction-level-primitives", "chapter07-cuda-instruction-level-primitives", "{4181DC7F-C97C-4C26-90FD-00526ABE3960}"
 	ProjectSection(SolutionItems) = preProject
 		readme.md = readme.md
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter08", "chapter08", "{49772A9F-40A3-4E7E-AB3F-ABAD2B36770B}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter08-gpu-accelerated-cuda-libraries-and-openacc", "chapter08-gpu-accelerated-cuda-libraries-and-openacc", "{49772A9F-40A3-4E7E-AB3F-ABAD2B36770B}"
 	ProjectSection(SolutionItems) = preProject
 		readme.md = readme.md
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter09", "chapter09", "{BB3FF1C7-9763-4FDD-BB74-2FDD33C4D48E}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter09-muti-gpu-programming", "chapter09-muti-gpu-programming", "{BB3FF1C7-9763-4FDD-BB74-2FDD33C4D48E}"
 	ProjectSection(SolutionItems) = preProject
 		readme.md = readme.md
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter10", "chapter10", "{B5EFF688-7143-4821-9ADC-F85D810A6F75}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "chapter10-implementation-considerations", "chapter10-implementation-considerations", "{B5EFF688-7143-4821-9ADC-F85D810A6F75}"
 	ProjectSection(SolutionItems) = preProject
 		readme.md = readme.md
 	EndProjectSection
@@ -196,6 +196,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Example_1", "chapter01\Example_1\Example_1.vcxproj", "{5F69AFB2-2588-4098-8CDB-1FEC1694AE28}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sumArrayOnHost", "chapter02\sumArrayOnHost\sumArrayOnHost.vcxproj", "{1CAE8259-B40B-4DE1-811C-75F005FB500E}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "inspecting_kernel", "inspecting_kernel\inspecting_kernel.vcxproj", "{187AB764-0054-4472-A06F-CB9848B739C5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -781,6 +783,14 @@ Global
 		{1CAE8259-B40B-4DE1-811C-75F005FB500E}.Release|x64.Build.0 = Release|x64
 		{1CAE8259-B40B-4DE1-811C-75F005FB500E}.Release|x86.ActiveCfg = Release|x64
 		{1CAE8259-B40B-4DE1-811C-75F005FB500E}.Release|x86.Build.0 = Release|x64
+		{187AB764-0054-4472-A06F-CB9848B739C5}.Debug|x64.ActiveCfg = Debug|x64
+		{187AB764-0054-4472-A06F-CB9848B739C5}.Debug|x64.Build.0 = Debug|x64
+		{187AB764-0054-4472-A06F-CB9848B739C5}.Debug|x86.ActiveCfg = Debug|x64
+		{187AB764-0054-4472-A06F-CB9848B739C5}.Debug|x86.Build.0 = Debug|x64
+		{187AB764-0054-4472-A06F-CB9848B739C5}.Release|x64.ActiveCfg = Release|x64
+		{187AB764-0054-4472-A06F-CB9848B739C5}.Release|x64.Build.0 = Release|x64
+		{187AB764-0054-4472-A06F-CB9848B739C5}.Release|x86.ActiveCfg = Release|x64
+		{187AB764-0054-4472-A06F-CB9848B739C5}.Release|x86.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -857,6 +867,7 @@ Global
 		{2429F979-8A92-404F-90F0-D679E0B83946} = {4181DC7F-C97C-4C26-90FD-00526ABE3960}
 		{5F69AFB2-2588-4098-8CDB-1FEC1694AE28} = {C89CACD1-0223-4E4F-80C9-8FD8BB01A4CB}
 		{1CAE8259-B40B-4DE1-811C-75F005FB500E} = {0CDB222D-5BB2-4520-9934-F564E7AFA75A}
+		{187AB764-0054-4472-A06F-CB9848B739C5} = {C89CACD1-0223-4E4F-80C9-8FD8BB01A4CB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {499A40F2-B932-406B-B5A5-418DC90A133A}
