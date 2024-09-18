@@ -82,7 +82,7 @@ void getArgs(int argc, char** argv, int& n) {
 
 int main(int argc, char** argv)
 {
-    int n;
+    int n; // *** in this example, n must be less than the max threads per block of 1,024. ***
 
     printf("%s Starting...\n", argv[0]);
     std::chrono::steady_clock::time_point begin;
@@ -123,7 +123,7 @@ int main(int argc, char** argv)
 
     // invoke kernel at host side
     dim3 block(n);
-    dim3 grid(1);
+    dim3 grid(n/block.x); // same as 1.
 
 
     begin = StartTimer();

@@ -82,6 +82,12 @@ __global__ void sumMatrixOnGPUMix(float* MatA, float* MatB, float* MatC, int nx,
 
     if (ix < nx && iy < ny)
         MatC[idx] = MatA[idx] + MatB[idx];
+
+    printf("threadIdx:(%d, %d, %d) blockIdx:(%d, %d, %d) blockDim:(%d, %d, %d) "
+        "gridDim:(%d, %d, %d)\n", threadIdx.x, threadIdx.y, threadIdx.z,
+        blockIdx.x, blockIdx.y, blockIdx.z,
+        blockDim.x, blockDim.y, blockDim.z,
+        gridDim.x, gridDim.y, gridDim.z);
 }
 
 void getArgs(int argc, char** argv, int& x, int& y) {
@@ -157,7 +163,7 @@ int main(int argc, char** argv)
     CHECK(cudaMemcpy(d_MatB, h_B, nBytes, cudaMemcpyHostToDevice));
 
     // invoke kernel at host side
-    int dimx = 256;
+    int dimx = 128;// 256;
     dim3 block(dimx, 1);
     dim3 grid((nx + block.x - 1) / block.x, ny);
 

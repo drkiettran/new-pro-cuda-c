@@ -92,8 +92,8 @@ void getArgs(int argc, char** argv, int& x, int& y) {
     try {
         TCLAP::CmdLine cmd("MyProgram - A sample C++ program", ' ', "1.0");
 
-        TCLAP::ValueArg<int> xArg("x", "cols", "Number of columns", false, 8, "int");
-        TCLAP::ValueArg<int> yArg("y", "rows", "Number of rows", false, 8, "int");
+        TCLAP::ValueArg<int> xArg("x", "power-of-x", "Number of columns: 2 to the x", false, 14, "int");
+        TCLAP::ValueArg<int> yArg("y", "power-of-y", "Number of rows: 2 to the y", false, 14, "int");
         cmd.add(xArg);
         cmd.add(yArg);
         cmd.parse(argc, argv);
@@ -159,8 +159,8 @@ int main(int argc, char** argv)
     CHECK(cudaMemcpy(d_MatB, h_B, nBytes, cudaMemcpyHostToDevice));
 
     // invoke kernel at host side
-    int dimx = 32;
-    int dimy = 32;
+    int dimx = 512;
+    int dimy = 1024/dimx; // max threads per block = 1,024!
     dim3 block(dimx, dimy);
     dim3 grid((nx + block.x - 1) / block.x, (ny + block.y - 1) / block.y);
 

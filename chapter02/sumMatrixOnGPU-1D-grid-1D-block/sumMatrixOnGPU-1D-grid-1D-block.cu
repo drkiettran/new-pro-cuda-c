@@ -87,7 +87,11 @@ __global__ void sumMatrixOnGPU1D(float* MatA, float* MatB, float* MatC, int nx,
     // printf("thread_id (%02d,%02d) block_id (%02d,%02d) coordinate (%02d,%02d) global index"
        //     " %d ival %d\n", threadIdx.x, threadIdx.y, blockIdx.x, blockIdx.y,
           //  ix, iy, idx, (int)MatA[idx]);
-
+    printf("threadIdx:(%d, %d, %d) blockIdx:(%d, %d, %d) blockDim:(%d, %d, %d) "
+        "gridDim:(%d, %d, %d)\n", threadIdx.x, threadIdx.y, threadIdx.z,
+        blockIdx.x, blockIdx.y, blockIdx.z,
+        blockDim.x, blockDim.y, blockDim.z,
+        gridDim.x, gridDim.y, gridDim.z);
 }
 
 void getArgs(int argc, char** argv, int& x, int& y) {

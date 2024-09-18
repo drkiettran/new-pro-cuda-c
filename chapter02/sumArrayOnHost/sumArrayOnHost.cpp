@@ -5,7 +5,7 @@
 #include <tclap/CmdLine.h>
 
 
-#define BILLION  1000000000.0;
+#define BILLION  1000.0;
 
 /*
  * This example demonstrates a simple vector sum on the host. sumArraysOnHost
@@ -21,16 +21,20 @@ void sumArraysOnHost(float* A, float* B, float* C, const int N)
 
 }
 
+/*
+* Initialize an array of floats with randomly generated float values.
+*/
 void initialData(float* ip, int size)
 {
     // generate different seed for random number
     time_t t;
-    srand((unsigned)time(&t));
+    
+    srand((unsigned)time(&t)+(unsigned)ip);
 
     for (int i = 0; i < size; i++)
     {
         ip[i] = (float)(rand() & 0xFF) / 10.0f;
-        ip[i] = (float)i;
+        //ip[i] = (float)i;
     }
 
     return;
@@ -79,9 +83,9 @@ int main(int argc, char** argv)
     
     begin = StartTimer();
     sumArraysOnHost(h_A, h_B, h_C, n);
-    std::cout << "Sum Arrays on Host: " << GetDurationInMilliSeconds(begin, StopTimer()) << " ms" << std::endl;
+    std::cout << "Sum Arrays on Host: " << GetDurationInMicroSeconds(begin, StopTimer()) << " microsecs" << std::endl;
 
-    // print_arrays(h_A, h_B, h_C, nElem);
+    print_arrays(h_A, h_B, h_C, n);
 
     free(h_A);
     free(h_B);

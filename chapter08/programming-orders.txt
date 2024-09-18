@@ -1,0 +1,12 @@
+1. cusparse.cu (the CUSPARSE library)
+2. cublas.cu (the cuBLAS library)
+3. cufft.cu (the cuFFT library)
+4. replace-rand.cu (the cuRAND library)
+5. replace-rand-streams.cu (the cuRAND library)
+6. rand-kernel.cu (the cuRAND library)
+7. drop-in.c (CUDA 6) <<<<<< sgem_ not existed! <<<<
+8. cufft-multi.cu (CUDA library features introduced in CUDA 6)
+9. cuda-openacc.cu (Using OpenACC)
+10. simple-data.c (OpenACC)
+11. simple-parallel.c (OpenACC) <<< Requires multiple GPUs <<<
+12. simple-kernel.c (OpenACC) <<< NOT Working <<<

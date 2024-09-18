@@ -29,7 +29,7 @@
 void printMatrix(int* C, const int nx, const int ny)
 {
     int* ic = C;
-    printf("\nMatrix: (%d.%d)\n", nx, ny);
+    printf("\nMatrix: (%d,%d)\n", nx, ny);
 
     for (int iy = 0; iy < ny; iy++)
     {

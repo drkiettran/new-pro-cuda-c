@@ -197,6 +197,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sumArrayOnHost", "chapter02
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "inspecting_kernel", "inspecting_kernel\inspecting_kernel.vcxproj", "{187AB764-0054-4472-A06F-CB9848B739C5}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "simple2DFD", "chapter09-muti-gpu-programming\simple2DFD\simple2DFD.vcxproj", "{F1E4EFD4-D1A0-42F0-B079-C303B9343656}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -781,6 +783,14 @@ Global
 		{187AB764-0054-4472-A06F-CB9848B739C5}.Release|x64.Build.0 = Release|x64
 		{187AB764-0054-4472-A06F-CB9848B739C5}.Release|x86.ActiveCfg = Release|x64
 		{187AB764-0054-4472-A06F-CB9848B739C5}.Release|x86.Build.0 = Release|x64
+		{F1E4EFD4-D1A0-42F0-B079-C303B9343656}.Debug|x64.ActiveCfg = Debug|x64
+		{F1E4EFD4-D1A0-42F0-B079-C303B9343656}.Debug|x64.Build.0 = Debug|x64
+		{F1E4EFD4-D1A0-42F0-B079-C303B9343656}.Debug|x86.ActiveCfg = Debug|x64
+		{F1E4EFD4-D1A0-42F0-B079-C303B9343656}.Debug|x86.Build.0 = Debug|x64
+		{F1E4EFD4-D1A0-42F0-B079-C303B9343656}.Release|x64.ActiveCfg = Release|x64
+		{F1E4EFD4-D1A0-42F0-B079-C303B9343656}.Release|x64.Build.0 = Release|x64
+		{F1E4EFD4-D1A0-42F0-B079-C303B9343656}.Release|x86.ActiveCfg = Release|x64
+		{F1E4EFD4-D1A0-42F0-B079-C303B9343656}.Release|x86.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -857,6 +867,7 @@ Global
 		{5F69AFB2-2588-4098-8CDB-1FEC1694AE28} = {C89CACD1-0223-4E4F-80C9-8FD8BB01A4CB}
 		{1CAE8259-B40B-4DE1-811C-75F005FB500E} = {0CDB222D-5BB2-4520-9934-F564E7AFA75A}
 		{187AB764-0054-4472-A06F-CB9848B739C5} = {C89CACD1-0223-4E4F-80C9-8FD8BB01A4CB}
+		{F1E4EFD4-D1A0-42F0-B079-C303B9343656} = {BB3FF1C7-9763-4FDD-BB74-2FDD33C4D48E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {499A40F2-B932-406B-B5A5-418DC90A133A}
