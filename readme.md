@@ -14,3 +14,14 @@ From Cheng et al., Professional CUDA C Programming 2013
 ## Chapter 08: GPU-Accelerated CUDA Libraries and OpenACC
 ## Chapter 09: Multi-GPU Programming
 ## Chapter 10: Implementation Considerations
+
+# Chapter 3 exercises
+
+1. simpleDivergence.cu (Understanding the nature of WARP execution)
+2. simpleDeviceQuery.cu
+3. sumMatrix.cu (Expose Paralellism)
+4. reduceInteger.cu (Avoiding Branch Divergence)
+5. nestedHelloWorld.cu (Dynamic Parllelism)
+6. nestedReduce.cu (Nested Reduction)
+7. nestedReduceNosync.cu (Nested Reduction)
+8. nestedReduce2.cu (Nested Reduction)

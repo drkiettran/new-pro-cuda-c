@@ -36,9 +36,9 @@ __global__ void mathKernel2(float* c)
     float ia, ib;
     ia = ib = 0.0f;
 
-    //if ((tid / warpSize) % 2 == 0)
+    if ((tid / warpSize) % 2 == 0)
     // if ((tid >> 5) % 2 == 0)
-    if (((tid >> 5) & 0x01) == 0)
+    // if (((tid >> 5) & 0x01) == 0)
     {
         ia = 100.0f;
     }
