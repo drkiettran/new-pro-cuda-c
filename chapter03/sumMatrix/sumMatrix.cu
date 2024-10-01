@@ -131,6 +131,7 @@ int main(int argc, char** argv)
         dimy = atoi(argv[2]);
     }
 
+
     dim3 block(dimx, dimy);
     dim3 grid((nx + block.x - 1) / block.x, (ny + block.y - 1) / block.y);
 

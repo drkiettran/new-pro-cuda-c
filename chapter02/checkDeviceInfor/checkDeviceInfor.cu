@@ -97,3 +97,24 @@ int main(int argc, char** argv)
 
     exit(EXIT_SUCCESS);
 }
+
+void example(int c[], int a[], int b[]) {
+    
+    for (int i = 0; i < 100; i++) {
+        c[i] = a[i] + b[i];
+    }
+
+    // loop count is 50
+    for (int i = 0; i < 100; i += 2) {
+        c[i] = a[i] + b[i];
+        c[i+1] = a[i+1] + b[i+1];
+    }
+
+    // loop count is 25
+    for (int i = 0; i < 100; i += 4) {
+        c[i] = a[i] + b[i];
+        c[i+1] = a[i+1] + b[i+1];
+        c[i+2] = a[i+2] + b[i+2];
+        c[i+3] = a[i+3] + b[i+3];
+    }
+}
