@@ -17,11 +17,16 @@ From Cheng et al., Professional CUDA C Programming 2013
 
 # Chapter 3 exercises
 
-1. simpleDivergence.cu (Understanding the nature of WARP execution)
-2. simpleDeviceQuery.cu
-3. sumMatrix.cu (Expose Paralellism)
-4. reduceInteger.cu (Avoiding Branch Divergence)
-5. nestedHelloWorld.cu (Dynamic Parllelism)
-6. nestedReduce.cu (Nested Reduction)
-7. nestedReduceNosync.cu (Nested Reduction)
-8. nestedReduce2.cu (Nested Reduction)
+1.  globalVariable.cu (CUDA Memory Model)
+2.  memTransfer.cu (Memory Management)
+3.  pinMemTransfer.cu (Memory Management)
+4.  sumArrayZerocopy.cu (Memory Management)
+5.  sumArrayZerocopyUVA.cu (Memory Management)
+6.  readSegment.cu (Memory Access Patterns)
+7.  writeSegment.cu (Memory Access Patterns)
+8.  simpleMathAoS.cu (Memory Access Patterns)
+9.  simpleMathSoA.cu (Memory Access Patterns)
+10. readSegmentUnroll.cu (Memory Access Patterns)
+11. transpose.cu (What Bandwidth can a Kernel Achieve?)
+12. sumMatrixGPUManaged.cu (Matrix Addtion with Unified Memory)
+13. sumMatrixGPUManual.cu (Matrix Addtion with Unified Memory)
