@@ -106,7 +106,7 @@ int main(int argc, char** argv)
     CHECK(cudaSetDevice(dev));
 
     // set up array size
-    int nElem = 1 << 20; // total number of elements to reduce
+    int nElem = 1 << 26; // total number of elements to reduce
     printf(" with array size %d\n", nElem);
     size_t nBytes = nElem * sizeof(float);
 

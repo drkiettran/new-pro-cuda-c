@@ -1,5 +1,6 @@
 ﻿#include <stdlib.h>
 #include <stdio.h>
+#include <iostream>
 #include <math.h>
 
 #include "cuda_runtime.h"
@@ -7,28 +8,9 @@
 #include "common.h"
 
 /*
- * This example demonstrates the impact of misaligned reads on performance by
- * forcing misaligned reads to occur on a float*.
+ * This example demonstrates the impact of misaligned writes on performance by
+ * forcing misaligned writes to occur on a float*.
  */
-
-void checkResult(float* hostRef, float* gpuRef, const int N)
-{
-    double epsilon = 1.0E-8;
-    bool match = 1;
-
-    for (int i = 0; i < N; i++)
-    {
-        if (abs(hostRef[i] - gpuRef[i]) > epsilon)
-        {
-            match = 0;
-            printf("different on %dth element: host %f gpu %f\n", i, hostRef[i],
-                gpuRef[i]);
-            break;
-        }
-    }
-
-    if (!match)  printf("Arrays do not match.\n\n");
-}
 
 void initialData(float* ip, int size)
 {
@@ -40,12 +22,27 @@ void initialData(float* ip, int size)
     return;
 }
 
-
-void sumArraysOnHost(float* A, float* B, float* C, const int n, int offset)
+__global__ void readWriteOffset(float* A, float* B, float* C, const int n,
+    int offset)
 {
-    for (int idx = offset, k = 0; idx < n; idx++, k++)
+    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int k = i + offset;
+
+    if (k < n) C[k] = A[k] + B[k];
+}
+
+__global__ void readWriteOffsetUnroll4(float* A, float* B, float* C,
+    const int n, int offset)
+{
+    unsigned int i = blockIdx.x * blockDim.x * 4 + threadIdx.x;
+    unsigned int k = i + offset;
+
+    if (k + 3 * blockDim.x < n)
     {
-        C[k] = A[idx] + B[idx];
+        C[k] = A[k] + B[k];
+        C[k + blockDim.x] = A[k + blockDim.x] + B[k + blockDim.x];
+        C[k + 2 * blockDim.x] = A[k + 2 * blockDim.x] + B[k + 2 * blockDim.x];
+        C[k + 3 * blockDim.x] = A[k + 3 * blockDim.x] + B[k + 3 * blockDim.x];
     }
 }
 
@@ -54,16 +51,7 @@ __global__ void warmup(float* A, float* B, float* C, const int n, int offset)
     unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int k = i + offset;
 
-    if (k < n) C[i] = A[k] + B[k];
-}
-
-__global__ void readOffset(float* A, float* B, float* C, const int n,
-    int offset)
-{
-    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned int k = i + offset;
-
-    if (k < n) C[i] = A[k] + B[k];
+    if (k < n) C[k] = A[i] + B[i];
 }
 
 int main(int argc, char** argv)
@@ -80,7 +68,7 @@ int main(int argc, char** argv)
     CHECK(cudaSetDevice(dev));
 
     // set up array size
-    int nElem = 1 << 27; // total number of elements to reduce
+    int nElem = 1 << 26; // total number of elements to reduce
     printf(" with array size %d\n", nElem);
     size_t nBytes = nElem * sizeof(float);
 
@@ -99,15 +87,11 @@ int main(int argc, char** argv)
     // allocate host memory
     float* h_A = (float*)malloc(nBytes);
     float* h_B = (float*)malloc(nBytes);
-    float* hostRef = (float*)malloc(nBytes);
     float* gpuRef = (float*)malloc(nBytes);
 
-    //  initialize host array
+    // initialize host array
     initialData(h_A, nElem);
     memcpy(h_B, h_A, nBytes);
-
-    //  summary at host side
-    sumArraysOnHost(h_A, h_B, hostRef, nElem, offset);
 
     // allocate device memory
     float* d_A, * d_B, * d_C;
@@ -119,22 +103,25 @@ int main(int argc, char** argv)
     CHECK(cudaMemcpy(d_A, h_A, nBytes, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(d_B, h_A, nBytes, cudaMemcpyHostToDevice));
 
-    //  kernel 1:
+    // warmup
     begin = StartTimer();
     warmup << <grid, block >> > (d_A, d_B, d_C, nElem, offset);
     CHECK(cudaDeviceSynchronize());
     std::cout << "warmup: " << GetDurationInMicroSeconds(begin, StopTimer()) << " mcs" << std::endl;
     CHECK(cudaGetLastError());
 
+    // readWriteOffset
     begin = StartTimer();
-    readOffset << <grid, block >> > (d_A, d_B, d_C, nElem, offset);
+    readWriteOffset << <grid, block >> > (d_A, d_B, d_C, nElem, offset);
     CHECK(cudaDeviceSynchronize());
-    std::cout << "readOffset: " << GetDurationInMicroSeconds(begin, StopTimer()) << " mcs" << std::endl;
-    CHECK(cudaGetLastError());
+    std::cout << "readWriteOffset: " << GetDurationInMicroSeconds(begin, StopTimer()) << " mcs" << std::endl;    CHECK(cudaGetLastError());
 
-    // copy kernel result back to host side and check device results
-    CHECK(cudaMemcpy(gpuRef, d_C, nBytes, cudaMemcpyDeviceToHost));
-    checkResult(hostRef, gpuRef, nElem - offset);
+    // readWriteOffsetUnroll4
+    begin = StartTimer();
+    readWriteOffsetUnroll4 << <grid.x / 4, block >> > (d_A, d_B, d_C, nElem, offset);
+    CHECK(cudaDeviceSynchronize());
+    std::cout << "readWriteOffsetUnrolll4: " << GetDurationInMicroSeconds(begin, StopTimer()) << " mcs" << std::endl;    CHECK(cudaGetLastError());
+    CHECK(cudaGetLastError());
 
     // free host and device memory
     CHECK(cudaFree(d_A));

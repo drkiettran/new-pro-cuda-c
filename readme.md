@@ -15,7 +15,7 @@ From Cheng et al., Professional CUDA C Programming 2013
 ## Chapter 09: Multi-GPU Programming
 ## Chapter 10: Implementation Considerations
 
-# Chapter 3 exercises
+# Chapter 4 exercises
 
 1.  globalVariable.cu (CUDA Memory Model)
 2.  memTransfer.cu (Memory Management)
