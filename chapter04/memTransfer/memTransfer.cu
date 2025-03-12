@@ -57,7 +57,9 @@ int main(int argc, char** argv)
     std::cout << "cudaMalloc: " << GetDurationInMicroSeconds(begin, StopTimer()) << " mcs" << std::endl;
 
     // initialize the host memory
-    for (unsigned int i = 0; i < isize; i++) h_a[i] = 0.5f;
+    for (unsigned int i = 0; i < isize; i++) {
+        h_a[i] = 0.5f;
+    }
 
     // transfer data from the host to the device
     begin = StartTimer();

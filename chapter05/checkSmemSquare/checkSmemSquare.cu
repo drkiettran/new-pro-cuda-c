@@ -12,7 +12,7 @@
  */
 
 #define BDIMX 32
-#define BDIMY 16
+#define BDIMY 32
 #define IPAD  2
 
 void printData(char* msg, int* in, const int size)
