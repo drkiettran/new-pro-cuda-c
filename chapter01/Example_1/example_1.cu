@@ -20,7 +20,7 @@ __global__ void add(int a, int b, int* c) {
 	*c = a + b;
 }
 
-int proc_args(int argc, char* argv[], int* a, int* b) {
+void proc_args(int argc, char* argv[], int* a, int* b) {
 
     try {
         std::cout << "Processing command line arguments" << std::endl;

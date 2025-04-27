@@ -48,7 +48,7 @@ int main(int argc, char** argv)
     int cudaStatus = cudaMalloc((void**)&d_A, nElem * sizeof(int));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
+        exit(-1);
     }
 
     cudaStatus = cudaMemcpy(d_A, h_A, nElem * sizeof(int), cudaMemcpyHostToDevice);
@@ -68,9 +68,9 @@ int main(int argc, char** argv)
     cudaStatus = cudaDeviceReset();
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaDeviceReset failed!");
-        goto Error;
+        exit(-2);
     }
-Error:
+
     if (h_A != NULL) free(h_A);
     if (d_A != NULL) cudaFree(d_A);
 
