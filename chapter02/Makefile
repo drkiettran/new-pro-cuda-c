@@ -2,8 +2,8 @@ APPS = checkDeviceInfor/checkDeviceInfor \
 	   checkDimension/checkDimension \
 	   checkThreadIndex/checkThreadIndex \
 	   defineGridBlock/defineGridBlock \
-	   sumArrayOnGPU-small-case/sumArrayOnGPU-small-case \
-	   sumArrayOnHost/sumArrayOnHost \
+	   sumArraysOnGPU-small-case/sumArraysOnGPU-small-case \
+	   sumArraysOnHost/sumArraysOnHost \
 	   sumArraysOnGPU-timer/sumArraysOnGPU-timer \
 	   sumMatrixOnGPU-1D-grid-1D-block/sumMatrixOnGPU-1D-grid-1D-block \
 	   sumMatrixOnGPU-2D-grid-1D-block/sumMatrixOnGPU-2D-grid-1D-block \
