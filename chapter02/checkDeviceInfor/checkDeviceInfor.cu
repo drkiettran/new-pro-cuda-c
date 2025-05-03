@@ -7,6 +7,7 @@
 #include "common.h"
 
 
+
 /*
  * Display a variety of information on the first CUDA device in this system,
  * including driver version, runtime version, compute capability, bytes of
@@ -35,11 +36,11 @@ int main(int argc, char** argv)
         CHECK(cudaSetDevice(dev));
         cudaDeviceProp deviceProp;
         CHECK(cudaGetDeviceProperties(&deviceProp, dev));
-        printf("Device %d: \"%s\"\n", dev, deviceProp.name);
+        printf("\x1b[1;31mDevice %d: \"%s\"\n", dev, deviceProp.name);
 
         cudaDriverGetVersion(&driverVersion);
         cudaRuntimeGetVersion(&runtimeVersion);
-        printf("  CUDA Driver Version / Runtime Version          %d.%d / %d.%d\n",
+        printf("\x1b[0m  CUDA Driver Version / Runtime Version          %d.%d / %d.%d\n",
             driverVersion / 1000, (driverVersion % 100) / 10,
             runtimeVersion / 1000, (runtimeVersion % 100) / 10);
         printf("  CUDA Capability Major/Minor version number:    %d.%d\n",
