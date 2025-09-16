@@ -41,6 +41,7 @@ int main(int argc, char** argv)
     float h_deviceF;
     double* deviceD;
     double h_deviceD;
+    int test = 30;
 
     float hostF = 12.1;
     double hostD = 12.1;
