@@ -218,8 +218,17 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "warpShuffleReduction", "chapter05\warpShuffleReduction\warpShuffleReduction.vcxproj", "{6C60D348-FC70-4020-84CA-0C410959F299}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "rtx-5060-blackwell", "rtx-5060-blackwell", "{3F70D63A-CD9D-4BE0-9C10-6F2C105E1B7F}"
+	ProjectSection(SolutionItems) = preProject
+		option_2_modern_cuda_features_and_advanced_optimization.md = option_2_modern_cuda_features_and_advanced_optimization.md
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tensor_core_example", "rtx-5060-blackwell\tensor_core_example\tensor_core_example.vcxproj", "{C3BA8E93-6A01-4B73-888F-C43D6165649A}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "module_1_tbc_portfolio_correlation_matrix", "rtx-5060-blackwell\module_1_tbc_portfolio_correlation_matrix\module_1_tbc_portfolio_correlation_matrix.vcxproj", "{6A50F44A-DE2D-4B6A-AF57-853D7472048B}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "module_2_portfolio_var", "rtx-5060-blackwell\module_2_portfolio_var\module_2_portfolio_var.vcxproj", "{F58CAD74-CF88-EAF7-38D3-82C48E625023}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "thread_block_cluster_example", "rtx-5060-blackwell\thread_block_cluster_example\thread_block_cluster_example.vcxproj", "{0B59F34A-3CC0-05F0-3882-119E8EB567EC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -885,6 +894,30 @@ Global
 		{C3BA8E93-6A01-4B73-888F-C43D6165649A}.Release|x64.Build.0 = Release|x64
 		{C3BA8E93-6A01-4B73-888F-C43D6165649A}.Release|x86.ActiveCfg = Release|x64
 		{C3BA8E93-6A01-4B73-888F-C43D6165649A}.Release|x86.Build.0 = Release|x64
+		{6A50F44A-DE2D-4B6A-AF57-853D7472048B}.Debug|x64.ActiveCfg = Debug|x64
+		{6A50F44A-DE2D-4B6A-AF57-853D7472048B}.Debug|x64.Build.0 = Debug|x64
+		{6A50F44A-DE2D-4B6A-AF57-853D7472048B}.Debug|x86.ActiveCfg = Debug|x64
+		{6A50F44A-DE2D-4B6A-AF57-853D7472048B}.Debug|x86.Build.0 = Debug|x64
+		{6A50F44A-DE2D-4B6A-AF57-853D7472048B}.Release|x64.ActiveCfg = Release|x64
+		{6A50F44A-DE2D-4B6A-AF57-853D7472048B}.Release|x64.Build.0 = Release|x64
+		{6A50F44A-DE2D-4B6A-AF57-853D7472048B}.Release|x86.ActiveCfg = Release|x64
+		{6A50F44A-DE2D-4B6A-AF57-853D7472048B}.Release|x86.Build.0 = Release|x64
+		{F58CAD74-CF88-EAF7-38D3-82C48E625023}.Debug|x64.ActiveCfg = Debug|x64
+		{F58CAD74-CF88-EAF7-38D3-82C48E625023}.Debug|x64.Build.0 = Debug|x64
+		{F58CAD74-CF88-EAF7-38D3-82C48E625023}.Debug|x86.ActiveCfg = Debug|x64
+		{F58CAD74-CF88-EAF7-38D3-82C48E625023}.Debug|x86.Build.0 = Debug|x64
+		{F58CAD74-CF88-EAF7-38D3-82C48E625023}.Release|x64.ActiveCfg = Release|x64
+		{F58CAD74-CF88-EAF7-38D3-82C48E625023}.Release|x64.Build.0 = Release|x64
+		{F58CAD74-CF88-EAF7-38D3-82C48E625023}.Release|x86.ActiveCfg = Release|x64
+		{F58CAD74-CF88-EAF7-38D3-82C48E625023}.Release|x86.Build.0 = Release|x64
+		{0B59F34A-3CC0-05F0-3882-119E8EB567EC}.Debug|x64.ActiveCfg = Debug|x64
+		{0B59F34A-3CC0-05F0-3882-119E8EB567EC}.Debug|x64.Build.0 = Debug|x64
+		{0B59F34A-3CC0-05F0-3882-119E8EB567EC}.Debug|x86.ActiveCfg = Debug|x64
+		{0B59F34A-3CC0-05F0-3882-119E8EB567EC}.Debug|x86.Build.0 = Debug|x64
+		{0B59F34A-3CC0-05F0-3882-119E8EB567EC}.Release|x64.ActiveCfg = Release|x64
+		{0B59F34A-3CC0-05F0-3882-119E8EB567EC}.Release|x64.Build.0 = Release|x64
+		{0B59F34A-3CC0-05F0-3882-119E8EB567EC}.Release|x86.ActiveCfg = Release|x64
+		{0B59F34A-3CC0-05F0-3882-119E8EB567EC}.Release|x86.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -971,6 +1004,9 @@ Global
 		{31008F73-E8C0-4A4B-AEE4-93BBA9A03F71} = {7E843A43-D1B6-44BB-BC9F-A821B6ED8FFD}
 		{6C60D348-FC70-4020-84CA-0C410959F299} = {44C083BE-5EB2-49B8-9CB7-24A539F22BA2}
 		{C3BA8E93-6A01-4B73-888F-C43D6165649A} = {3F70D63A-CD9D-4BE0-9C10-6F2C105E1B7F}
+		{6A50F44A-DE2D-4B6A-AF57-853D7472048B} = {3F70D63A-CD9D-4BE0-9C10-6F2C105E1B7F}
+		{F58CAD74-CF88-EAF7-38D3-82C48E625023} = {3F70D63A-CD9D-4BE0-9C10-6F2C105E1B7F}
+		{0B59F34A-3CC0-05F0-3882-119E8EB567EC} = {3F70D63A-CD9D-4BE0-9C10-6F2C105E1B7F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {499A40F2-B932-406B-B5A5-418DC90A133A}

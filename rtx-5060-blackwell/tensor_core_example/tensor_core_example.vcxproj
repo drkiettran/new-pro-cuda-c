@@ -79,10 +79,16 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
+      <CodeGeneration>compute_89,sm_89</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="tensore_core_example.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="code_walkthrough.md" />
+    <None Include="kernel_walkthru_in_details.md" />
+    <None Include="tensor_cores_concept.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

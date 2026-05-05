@@ -1,33 +1,4 @@
-﻿// IntelliSense configuration for Visual Studio
-#ifdef __INTELLISENSE__
-#define __CUDACC__
-#define __host__
-#define __device__
-#define __global__
-#define __shared__
-#define __constant__
-#include <device_launch_parameters.h>
-#include <device_functions.h>
-// Simplified WMMA declarations for IntelliSense
-namespace nvcuda {
-    namespace wmma {
-        enum fragment_layout { row_major, col_major, mem_row_major, mem_col_major };
-        template<typename Use, int m, int n, int k, typename T, fragment_layout Layout = row_major>
-        struct fragment {
-            enum { num_elements = 8 };
-            T x[num_elements];
-        };
-        struct matrix_a {};
-        struct matrix_b {};
-        struct accumulator {};
-        template<typename T> void fill_fragment(T& frag, float value) {}
-        template<typename T> void load_matrix_sync(T& frag, const void* ptr, unsigned ldm) {}
-        template<typename T> void store_matrix_sync(void* ptr, const T& frag, unsigned ldm, fragment_layout layout) {}
-        template<typename T> void mma_sync(T& d, const T& a, const T& b, const T& c) {}
-    }
-}
-#endif
-
+﻿
 // RTX 5060 Blackwell Tensor Core Matrix Multiplication Example
 // File: kernel.cu (IMPORTANT: Must be .cu extension)
 

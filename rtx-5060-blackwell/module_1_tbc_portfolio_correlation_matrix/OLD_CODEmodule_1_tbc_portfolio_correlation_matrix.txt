@@ -1,0 +1,1457 @@
+﻿#include <cuda_runtime.h>
+#include <cooperative_groups.h>
+#include <iostream>
+
+__global__ void test_cluster() {
+    namespace cg = cooperative_groups;
+    cg::cluster_group cluster = cg::this_cluster();
+    printf("Block rank: %u\n", cluster.block_rank());
+}
+
+int main() {
+    cudaLaunchConfig_t config = { 0 };
+    config.gridDim = dim3(2, 2);
+    config.blockDim = dim3(32);
+
+    cudaLaunchAttribute attrs[1];
+    attrs[0].id = cudaLaunchAttributeClusterDimension;
+    attrs[0].val.clusterDim = { 2, 2, 1 };
+    config.attrs = attrs;
+    config.numAttrs = 1;
+
+    cudaLaunchKernelEx(&config, test_cluster, nullptr);
+    cudaDeviceSynchronize();
+
+    return 0;
+}
+
+
+
+/*
+* 
+// RTX 5060 Blackwell Thread Block Cluster Portfolio VaR
+// File: kernel_tbc.cu
+
+#include <cuda_runtime.h>
+#include <cuda_fp16.h>
+#include <device_launch_parameters.h>
+#include <cooperative_groups.h>
+#include <cooperative_groups/memcpy_async.h>
+#include <cuda/barrier>
+#include <cublas_v2.h>
+#include <curand.h>
+#include <curand_kernel.h>
+#include <thrust/sort.h>
+#include <thrust/device_vector.h>
+#include <iostream>
+#include <vector>
+#include <random>
+#include <chrono>
+#include <iomanip>
+
+namespace cg = cooperative_groups;
+
+// Portfolio configuration
+constexpr int N_ASSETS = 512;
+constexpr int N_TRADING_DAYS = 252;
+constexpr int N_MC_PATHS = 100000;
+constexpr int TILE_SIZE = 16;
+constexpr int CLUSTER_DIM_X = 2;  // Cluster dimensions
+constexpr int CLUSTER_DIM_Y = 2;  // 2x2 cluster = 4 blocks per cluster
+
+struct PortfolioData {
+    float* asset_returns;
+    float* correlation_matrix;
+    float* portfolio_weights;
+    float* mc_paths;
+    float* portfolio_pnl;
+};
+
+struct VaRResults {
+    float var_95;
+    float var_99;
+    float var_999;
+    float cvar_95;
+};
+
+#define CUDA_CHECK(call) \
+    do { \
+        cudaError_t error = call; \
+        if (error != cudaSuccess) { \
+            std::cerr << "CUDA error at " << __FILE__ << ":" << __LINE__ \
+                      << " - " << cudaGetErrorString(error) << std::endl; \
+            exit(1); \
+        } \
+    } while(0)
+
+// ============================================================================
+// THREAD BLOCK CLUSTER KERNEL - Enhanced Correlation Matrix Computation
+// ============================================================================
+
+__global__ void __launch_bounds__(TILE_SIZE* TILE_SIZE)
+compute_correlation_matrix_tbc(
+    const float* __restrict__ asset_returns,
+    float* __restrict__ correlation_matrix,
+    const int n_assets,
+    const int n_days
+) {
+    // Initialize cluster and block groups
+    cg::cluster_group cluster = cg::this_cluster();
+    cg::thread_block block = cg::this_thread_block();
+    
+    // Cluster dimensions
+    const int cluster_rank = cluster.block_rank();
+    const int blocks_per_cluster = cluster.num_blocks();
+    
+    // Thread and block indices
+    const int tx = threadIdx.x;
+    const int ty = threadIdx.y;
+    const int block_x = blockIdx.x;
+    const int block_y = blockIdx.y;
+    
+    // Global indices for this thread
+    const int global_x = block_x * TILE_SIZE + tx;
+    const int global_y = block_y * TILE_SIZE + ty;
+    
+    if (global_x >= n_assets || global_y >= n_assets) return;
+    
+    // Distributed shared memory - accessible across cluster
+    extern __shared__ float shared_mem[];
+    float* local_means = shared_mem;
+    float* local_stds = &shared_mem[TILE_SIZE];
+    float* temp_buffer = &shared_mem[2 * TILE_SIZE];
+    
+    // Phase 1: Compute means using cluster-wide cooperation
+    if (ty == 0 && tx < TILE_SIZE && global_x < n_assets) {
+        float sum = 0.0f;
+        
+        // Each block in cluster processes different portions
+        int start_day = (cluster_rank * n_days) / blocks_per_cluster;
+        int end_day = ((cluster_rank + 1) * n_days) / blocks_per_cluster;
+        
+        for (int day = start_day; day < end_day; ++day) {
+            sum += asset_returns[global_x * n_days + day];
+        }
+        
+        temp_buffer[tx] = sum;
+    }
+    
+    block.sync();
+    
+    // Cluster-wide reduction for means
+    if (ty == 0 && tx < TILE_SIZE) {
+        cluster.sync();  // Synchronize all blocks in cluster
+        
+        // Aggregate partial sums from all blocks in cluster
+        float total_sum = 0.0f;
+        for (int b = 0; b < blocks_per_cluster; ++b) {
+            // Access distributed shared memory from other blocks
+            float* remote_buffer = cluster.map_shared_rank(temp_buffer, b);
+            if (tx < TILE_SIZE) {
+                total_sum += remote_buffer[tx];
+            }
+        }
+        
+        local_means[tx] = total_sum / n_days;
+    }
+    
+    block.sync();
+    
+    // Phase 2: Compute standard deviations with cluster cooperation
+    if (ty == 0 && tx < TILE_SIZE && global_x < n_assets) {
+        float sum_sq = 0.0f;
+        float mean = local_means[tx];
+        
+        int start_day = (cluster_rank * n_days) / blocks_per_cluster;
+        int end_day = ((cluster_rank + 1) * n_days) / blocks_per_cluster;
+        
+        for (int day = start_day; day < end_day; ++day) {
+            float diff = asset_returns[global_x * n_days + day] - mean;
+            sum_sq += diff * diff;
+        }
+        
+        temp_buffer[tx] = sum_sq;
+    }
+    
+    block.sync();
+    
+    // Cluster-wide reduction for standard deviations
+    if (ty == 0 && tx < TILE_SIZE) {
+        cluster.sync();
+        
+        float total_sum_sq = 0.0f;
+        for (int b = 0; b < blocks_per_cluster; ++b) {
+            float* remote_buffer = cluster.map_shared_rank(temp_buffer, b);
+            if (tx < TILE_SIZE) {
+                total_sum_sq += remote_buffer[tx];
+            }
+        }
+        
+        local_stds[tx] = sqrtf(total_sum_sq / (n_days - 1));
+    }
+    
+    block.sync();
+    
+    // Phase 3: Compute correlation using cluster resources
+    if (global_x < n_assets && global_y < n_assets) {
+        float mean_x = local_means[tx];
+        float mean_y = local_means[ty];
+        float std_x = local_stds[tx];
+        float std_y = local_stds[ty];
+        
+        // Distribute covariance computation across cluster
+        float covariance = 0.0f;
+        int start_day = (cluster_rank * n_days) / blocks_per_cluster;
+        int end_day = ((cluster_rank + 1) * n_days) / blocks_per_cluster;
+        
+        for (int day = start_day; day < end_day; ++day) {
+            float ret_x = asset_returns[global_x * n_days + day] - mean_x;
+            float ret_y = asset_returns[global_y * n_days + day] - mean_y;
+            covariance += ret_x * ret_y;
+        }
+        
+        // Store partial covariance
+        temp_buffer[ty * TILE_SIZE + tx] = covariance;
+    }
+    
+    block.sync();
+    cluster.sync();
+    
+    // Final aggregation and correlation calculation
+    if (global_x < n_assets && global_y < n_assets) {
+        float total_covariance = 0.0f;
+        
+        // Aggregate covariances from all blocks in cluster
+        for (int b = 0; b < blocks_per_cluster; ++b) {
+            float* remote_buffer = cluster.map_shared_rank(temp_buffer, b);
+            total_covariance += remote_buffer[ty * TILE_SIZE + tx];
+        }
+        
+        total_covariance /= (n_days - 1);
+        
+        // Compute correlation coefficient
+        float std_product = local_stds[tx] * local_stds[ty];
+        float correlation;
+        
+        if (std_product > 1e-8f) {
+            correlation = total_covariance / std_product;
+        } else {
+            correlation = (global_x == global_y) ? 1.0f : 0.0f;
+        }
+        
+        correlation = fmaxf(-1.0f, fminf(1.0f, correlation));
+        
+        // Write to global memory
+        correlation_matrix[global_x * n_assets + global_y] = correlation;
+    }
+}
+
+// ============================================================================
+// SUPPORTING KERNELS (Original implementations)
+// ============================================================================
+
+__global__ void init_rng_kernel(curandState_t* states, int n_states) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n_states) {
+        curand_init(1234 + idx, idx, 0, &states[idx]);
+    }
+}
+
+__global__ void generate_monte_carlo_paths(
+    const float* __restrict__ correlation_matrix,
+    curandState_t* __restrict__ rng_states,
+    float* __restrict__ mc_paths,
+    const int n_assets,
+    const int n_paths
+) {
+    int path_id = blockIdx.x * blockDim.x + threadIdx.x;
+    if (path_id >= n_paths) return;
+
+    curandState_t local_state = rng_states[path_id];
+
+    for (int asset = 0; asset < n_assets; ++asset) {
+        float random_return = curand_normal(&local_state);
+        float correlated_return = random_return;
+
+        for (int j = 0; j < asset && j < 10; ++j) {
+            float correlation = correlation_matrix[asset * n_assets + j];
+            if (correlation > 0.1f) {
+                correlated_return += correlation * 0.1f * curand_normal(&local_state);
+            }
+        }
+
+        mc_paths[path_id * n_assets + asset] = correlated_return;
+    }
+
+    rng_states[path_id] = local_state;
+}
+
+__global__ void calculate_portfolio_pnl(
+    const float* __restrict__ mc_paths,
+    const float* __restrict__ portfolio_weights,
+    float* __restrict__ portfolio_pnl,
+    const int n_assets,
+    const int n_paths
+) {
+    int path_id = blockIdx.x * blockDim.x + threadIdx.x;
+    if (path_id >= n_paths) return;
+
+    float pnl = 0.0f;
+    for (int asset = 0; asset < n_assets; ++asset) {
+        pnl += portfolio_weights[asset] * mc_paths[path_id * n_assets + asset];
+    }
+
+    portfolio_pnl[path_id] = pnl;
+}
+
+// ============================================================================
+// HOST FUNCTIONS
+// ============================================================================
+
+void generate_synthetic_market_data(PortfolioData& data) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::normal_distribution<float> return_dist(0.0f, 0.005f);
+    std::uniform_real_distribution<float> weight_dist(0.0f, 1.0f);
+
+    std::vector<float> host_returns(N_ASSETS * N_TRADING_DAYS);
+    for (int asset = 0; asset < N_ASSETS; ++asset) {
+        for (int day = 0; day < N_TRADING_DAYS; ++day) {
+            float sector_effect = return_dist(gen) * 0.3f;
+            float idiosyncratic = return_dist(gen) * 0.7f;
+            host_returns[asset * N_TRADING_DAYS + day] = sector_effect + idiosyncratic;
+        }
+    }
+
+    std::vector<float> host_weights(N_ASSETS);
+    float weight_sum = 0.0f;
+    for (int i = 0; i < N_ASSETS; ++i) {
+        host_weights[i] = weight_dist(gen);
+        weight_sum += host_weights[i];
+    }
+    for (int i = 0; i < N_ASSETS; ++i) {
+        host_weights[i] /= weight_sum;
+    }
+
+    CUDA_CHECK(cudaMemcpy(data.asset_returns, host_returns.data(),
+        N_ASSETS * N_TRADING_DAYS * sizeof(float), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(data.portfolio_weights, host_weights.data(),
+        N_ASSETS * sizeof(float), cudaMemcpyHostToDevice));
+}
+
+VaRResults calculate_var(float* portfolio_pnl, int n_paths) {
+    thrust::device_ptr<float> pnl_ptr(portfolio_pnl);
+    thrust::sort(pnl_ptr, pnl_ptr + n_paths);
+
+    VaRResults results;
+    int idx_95 = static_cast<int>(0.05 * n_paths);
+    int idx_99 = static_cast<int>(0.01 * n_paths);
+    int idx_999 = static_cast<int>(0.001 * n_paths);
+
+    float host_results[3];
+    CUDA_CHECK(cudaMemcpy(&host_results[0], portfolio_pnl + idx_95, sizeof(float), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(&host_results[1], portfolio_pnl + idx_99, sizeof(float), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(&host_results[2], portfolio_pnl + idx_999, sizeof(float), cudaMemcpyDeviceToHost));
+
+    results.var_95 = -host_results[0];
+    results.var_99 = -host_results[1];
+    results.var_999 = -host_results[2];
+
+    float sum_tail = 0.0f;
+    for (int i = 0; i < idx_95; ++i) {
+        float tail_val;
+        CUDA_CHECK(cudaMemcpy(&tail_val, portfolio_pnl + i, sizeof(float), cudaMemcpyDeviceToHost));
+        sum_tail += tail_val;
+    }
+    results.cvar_95 = (idx_95 > 0) ? -sum_tail / idx_95 : 0.0f;
+
+    return results;
+}
+
+void initialize_portfolio_data(PortfolioData& data) {
+    CUDA_CHECK(cudaMalloc(&data.asset_returns, N_ASSETS * N_TRADING_DAYS * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&data.correlation_matrix, N_ASSETS * N_ASSETS * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&data.portfolio_weights, N_ASSETS * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&data.mc_paths, N_MC_PATHS * N_ASSETS * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&data.portfolio_pnl, N_MC_PATHS * sizeof(float)));
+
+    generate_synthetic_market_data(data);
+}
+
+void cleanup_portfolio_data(PortfolioData& data) {
+    cudaFree(data.asset_returns);
+    cudaFree(data.correlation_matrix);
+    cudaFree(data.portfolio_weights);
+    cudaFree(data.mc_paths);
+    cudaFree(data.portfolio_pnl);
+}
+
+void initialize_rng(curandState_t** rng_states) {
+    CUDA_CHECK(cudaMalloc(rng_states, N_MC_PATHS * sizeof(curandState_t)));
+    dim3 block(256);
+    dim3 grid((N_MC_PATHS + block.x - 1) / block.x);
+    init_rng_kernel<<<grid, block>>>(*rng_states, N_MC_PATHS);
+    CUDA_CHECK(cudaDeviceSynchronize());
+}
+
+// ============================================================================
+// MAIN - Thread Block Cluster Launch
+// ============================================================================
+
+int main() {
+    std::cout << "Portfolio VaR with Thread Block Clusters (Blackwell)" << std::endl;
+    std::cout << "Portfolio: " << N_ASSETS << " assets, " << N_MC_PATHS << " paths" << std::endl;
+    std::cout << "Cluster Config: " << CLUSTER_DIM_X << "x" << CLUSTER_DIM_Y << " blocks per cluster" << std::endl;
+    std::cout << std::string(70, '=') << std::endl;
+
+    // Check compute capability
+    int device;
+    cudaGetDevice(&device);
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, device);
+    std::cout << "GPU: " << prop.name << " (Compute " << prop.major << "." << prop.minor << ")" << std::endl;
+
+    PortfolioData portfolio_data;
+    initialize_portfolio_data(portfolio_data);
+
+    curandState_t* rng_states;
+    initialize_rng(&rng_states);
+
+    auto start_total = std::chrono::high_resolution_clock::now();
+
+    // Step 1: Correlation Matrix with Thread Block Clusters
+    std::cout << "\nStep 1: Computing correlation matrix with TBC..." << std::endl;
+    auto start_corr = std::chrono::high_resolution_clock::now();
+
+    dim3 block_dim(TILE_SIZE, TILE_SIZE);
+    dim3 grid_dim((N_ASSETS + TILE_SIZE - 1) / TILE_SIZE,
+                  (N_ASSETS + TILE_SIZE - 1) / TILE_SIZE);
+    
+    size_t shared_mem_size = (2 * TILE_SIZE + TILE_SIZE * TILE_SIZE) * sizeof(float);
+
+    // Configure cluster launch
+    cudaLaunchConfig_t config = {0};
+    config.gridDim = grid_dim;
+    config.blockDim = block_dim;
+    config.dynamicSmemBytes = shared_mem_size;
+    
+    cudaLaunchAttribute attrs[1];
+    attrs[0].id = cudaLaunchAttributeClusterDimension;
+    attrs[0].val.clusterDim.x = CLUSTER_DIM_X;
+    attrs[0].val.clusterDim.y = CLUSTER_DIM_Y;
+    attrs[0].val.clusterDim.z = 1;
+    
+    config.attrs = attrs;
+    config.numAttrs = 1;
+
+    // Launch with Thread Block Cluster
+    void* kernel_args[] = {
+        &portfolio_data.asset_returns,
+        &portfolio_data.correlation_matrix,
+        (void*)&N_ASSETS,
+        (void*)&N_TRADING_DAYS
+    };
+
+    CUDA_CHECK(cudaLaunchKernelEx(&config, compute_correlation_matrix_tbc, kernel_args));
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    auto end_corr = std::chrono::high_resolution_clock::now();
+    auto corr_time = std::chrono::duration<double, std::milli>(end_corr - start_corr).count();
+    std::cout << "  TBC Correlation computation: " << corr_time << " ms" << std::endl;
+
+    // Steps 2-4: Monte Carlo, P&L, VaR (unchanged)
+    std::cout << "\nStep 2: Generating Monte Carlo paths..." << std::endl;
+    auto start_mc = std::chrono::high_resolution_clock::now();
+
+    dim3 mc_block(256);
+    dim3 mc_grid((N_MC_PATHS + mc_block.x - 1) / mc_block.x);
+    generate_monte_carlo_paths<<<mc_grid, mc_block>>>(
+        portfolio_data.correlation_matrix, rng_states, portfolio_data.mc_paths,
+        N_ASSETS, N_MC_PATHS);
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    auto end_mc = std::chrono::high_resolution_clock::now();
+    auto mc_time = std::chrono::duration<double, std::milli>(end_mc - start_mc).count();
+    std::cout << "  Monte Carlo generation: " << mc_time << " ms" << std::endl;
+
+    std::cout << "\nStep 3: Calculating portfolio P&L..." << std::endl;
+    auto start_pnl = std::chrono::high_resolution_clock::now();
+
+    calculate_portfolio_pnl<<<mc_grid, mc_block>>>(
+        portfolio_data.mc_paths, portfolio_data.portfolio_weights,
+        portfolio_data.portfolio_pnl, N_ASSETS, N_MC_PATHS);
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    auto end_pnl = std::chrono::high_resolution_clock::now();
+    auto pnl_time = std::chrono::duration<double, std::milli>(end_pnl - start_pnl).count();
+    std::cout << "  P&L calculation: " << pnl_time << " ms" << std::endl;
+
+    std::cout << "\nStep 4: Calculating VaR..." << std::endl;
+    auto start_var = std::chrono::high_resolution_clock::now();
+
+    VaRResults var_results = calculate_var(portfolio_data.portfolio_pnl, N_MC_PATHS);
+
+    auto end_var = std::chrono::high_resolution_clock::now();
+    auto var_time = std::chrono::duration<double, std::milli>(end_var - start_var).count();
+    std::cout << "  VaR calculation: " << var_time << " ms" << std::endl;
+
+    auto end_total = std::chrono::high_resolution_clock::now();
+    auto total_time = std::chrono::duration<double, std::milli>(end_total - start_total).count();
+
+    // Display results
+    std::cout << "\n" << std::string(70, '=') << std::endl;
+    std::cout << "PORTFOLIO RISK ANALYSIS RESULTS" << std::endl;
+    std::cout << std::string(70, '=') << std::endl;
+    std::cout << std::fixed << std::setprecision(4);
+    std::cout << "95% Value-at-Risk:      " << var_results.var_95 * 100 << "%" << std::endl;
+    std::cout << "99% Value-at-Risk:      " << var_results.var_99 * 100 << "%" << std::endl;
+    std::cout << "99.9% Value-at-Risk:    " << var_results.var_999 * 100 << "%" << std::endl;
+    std::cout << "95% Conditional VaR:    " << var_results.cvar_95 * 100 << "%" << std::endl;
+    std::cout << std::string(70, '=') << std::endl;
+    std::cout << "PERFORMANCE BREAKDOWN (with TBC)" << std::endl;
+    std::cout << std::string(70, '=') << std::endl;
+    std::cout << "Correlation Matrix (TBC): " << corr_time << " ms" << std::endl;
+    std::cout << "Monte Carlo Paths:        " << mc_time << " ms" << std::endl;
+    std::cout << "Portfolio P&L:            " << pnl_time << " ms" << std::endl;
+    std::cout << "VaR Calculation:          " << var_time << " ms" << std::endl;
+    std::cout << "Total Execution Time:     " << total_time << " ms" << std::endl;
+    std::cout << std::string(70, '=') << std::endl;
+
+    // Cleanup
+    cleanup_portfolio_data(portfolio_data);
+    cudaFree(rng_states);
+
+    return 0;
+}
+
+*/
+
+/* 
+* -- Version as of 30 Sept 2025 - Newer version to include TBC 
+* -- This code works!
+* 
+// RTX 5060 Blackwell Tensor Core Matrix Multiplication Example
+// File: kernel.cu (IMPORTANT: Must be .cu extension)
+
+#include <cuda_runtime.h>
+#include <cuda_fp16.h>
+#include <device_launch_parameters.h>  // This provides blockDim, threadIdx, etc.
+#include <mma.h>                       // WMMA API for Tensor Cores
+#include <iostream>
+#include <vector>
+#include <chrono>
+#include <random>
+#include <cassert>
+
+//// Check CUDA errors
+//#define CUDA_CHECK(call) \
+//    do { \
+//        cudaError_t err = call; \
+//        if (err != cudaSuccess) { \
+//            std::cerr << "CUDA error at " << __FILE__ << ":" << __LINE__ << " - " << cudaGetErrorString(err) << std::endl; \
+//            exit(1); \
+//        } \
+//    } while(0)
+
+#include <cuda_runtime.h>
+#include <cooperative_groups.h>
+#include <cublas_v2.h>
+#include <curand.h>
+#include <curand_kernel.h>
+#include <thrust/sort.h>
+#include <thrust/device_vector.h>
+#include <iostream>
+#include <vector>
+#include <random>
+#include <chrono>
+#include <iomanip>
+
+namespace cg = cooperative_groups;
+
+// Portfolio configuration
+constexpr int N_ASSETS = 512;        // Reduced for demonstration (real: 2000)
+constexpr int N_TRADING_DAYS = 252;  // 1 year of trading days
+constexpr int N_MC_PATHS = 100000;   // Monte Carlo paths (real: 50M)
+constexpr int TILE_SIZE = 16;        // Thread block tile size
+
+// Financial data structures
+struct PortfolioData {
+    float* asset_returns;      // [N_ASSETS x N_TRADING_DAYS] historical returns
+    float* correlation_matrix; // [N_ASSETS x N_ASSETS] asset correlations
+    float* portfolio_weights;  // [N_ASSETS] portfolio weights (sum = 1.0)
+    float* mc_paths;          // [N_MC_PATHS x N_ASSETS] Monte Carlo paths
+    float* portfolio_pnl;     // [N_MC_PATHS] portfolio P&L for each path
+};
+
+struct VaRResults {
+    float var_95;    // 95% confidence VaR
+    float var_99;    // 99% confidence VaR  
+    float var_999;   // 99.9% confidence VaR
+    float cvar_95;   // 95% Conditional VaR (Expected Shortfall)
+};
+
+// Error checking macro
+#define CUDA_CHECK(call) \
+    do { \
+        cudaError_t error = call; \
+        if (error != cudaSuccess) { \
+            std::cerr << "CUDA error at " << __FILE__ << ":" << __LINE__ \
+                      << " - " << cudaGetErrorString(error) << std::endl; \
+            exit(1); \
+        } \
+    } while(0)
+
+// Generate synthetic market data for demonstration
+void generate_synthetic_market_data(PortfolioData& data) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::normal_distribution<float> return_dist(0.0f, 0.005f); // 0.5% daily volatility (more realistic)
+    std::uniform_real_distribution<float> weight_dist(0.0f, 1.0f);
+
+    // Generate historical returns
+    std::vector<float> host_returns(N_ASSETS * N_TRADING_DAYS);
+    for (int asset = 0; asset < N_ASSETS; ++asset) {
+        for (int day = 0; day < N_TRADING_DAYS; ++day) {
+            // Add some correlation structure - sector effects
+            float sector_effect = return_dist(gen) * 0.3f; // 30% sector correlation
+            float idiosyncratic = return_dist(gen) * 0.7f; // 70% asset-specific
+            host_returns[asset * N_TRADING_DAYS + day] = sector_effect + idiosyncratic;
+        }
+    }
+
+    // Generate portfolio weights (normalized)
+    std::vector<float> host_weights(N_ASSETS);
+    float weight_sum = 0.0f;
+    for (int i = 0; i < N_ASSETS; ++i) {
+        host_weights[i] = weight_dist(gen);
+        weight_sum += host_weights[i];
+    }
+    for (int i = 0; i < N_ASSETS; ++i) {
+        host_weights[i] /= weight_sum; // Normalize to sum = 1.0
+    }
+
+    // Copy to device
+    CUDA_CHECK(cudaMemcpy(data.asset_returns, host_returns.data(),
+        N_ASSETS * N_TRADING_DAYS * sizeof(float), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(data.portfolio_weights, host_weights.data(),
+        N_ASSETS * sizeof(float), cudaMemcpyHostToDevice));
+}
+
+// Optimized correlation matrix computation kernel
+__global__ void compute_correlation_matrix_optimized(
+    const float* __restrict__ asset_returns,  // [N_ASSETS x N_TRADING_DAYS]
+    float* __restrict__ correlation_matrix,   // [N_ASSETS x N_ASSETS]
+    const int n_assets,
+    const int n_days
+) {
+    // Initialize cooperative groups
+    auto block = cg::this_thread_block();
+
+    // Calculate tile and thread positions
+    const int tile_x = blockIdx.x;
+    const int tile_y = blockIdx.y;
+    const int tx = threadIdx.x;
+    const int ty = threadIdx.y;
+
+    // Global matrix indices
+    const int global_x = tile_x * TILE_SIZE + tx;
+    const int global_y = tile_y * TILE_SIZE + ty;
+
+    // Bounds checking
+    if (global_x >= n_assets || global_y >= n_assets) return;
+
+    // Shared memory for statistics
+    extern __shared__ float shared_mem[];
+    float* means_a = shared_mem;
+    float* means_b = &shared_mem[TILE_SIZE];
+    float* stds_a = &shared_mem[2 * TILE_SIZE];
+    float* stds_b = &shared_mem[3 * TILE_SIZE];
+
+    // Compute means for asset X (row-wise)
+    if (ty == 0 && tx < TILE_SIZE && global_x < n_assets) {
+        float sum = 0.0f;
+        for (int day = 0; day < n_days; ++day) {
+            sum += asset_returns[global_x * n_days + day];
+        }
+        means_a[tx] = sum / n_days;
+    }
+
+    // Compute means for asset Y (column-wise)
+    if (tx == 0 && ty < TILE_SIZE && global_y < n_assets) {
+        float sum = 0.0f;
+        for (int day = 0; day < n_days; ++day) {
+            sum += asset_returns[global_y * n_days + day];
+        }
+        means_b[ty] = sum / n_days;
+    }
+
+    block.sync();
+
+    // Compute standard deviations for asset X
+    if (ty == 0 && tx < TILE_SIZE && global_x < n_assets) {
+        float sum_sq = 0.0f;
+        for (int day = 0; day < n_days; ++day) {
+            float diff = asset_returns[global_x * n_days + day] - means_a[tx];
+            sum_sq += diff * diff;
+        }
+        stds_a[tx] = sqrtf(sum_sq / (n_days - 1));
+    }
+
+    // Compute standard deviations for asset Y
+    if (tx == 0 && ty < TILE_SIZE && global_y < n_assets) {
+        float sum_sq = 0.0f;
+        for (int day = 0; day < n_days; ++day) {
+            float diff = asset_returns[global_y * n_days + day] - means_b[ty];
+            sum_sq += diff * diff;
+        }
+        stds_b[ty] = sqrtf(sum_sq / (n_days - 1));
+    }
+
+    block.sync();
+
+    // Compute correlation coefficient
+    float correlation = 0.0f;
+    if (global_x < n_assets && global_y < n_assets) {
+        // Compute covariance
+        float covariance = 0.0f;
+        for (int day = 0; day < n_days; ++day) {
+            float ret_x = asset_returns[global_x * n_days + day] - means_a[tx];
+            float ret_y = asset_returns[global_y * n_days + day] - means_b[ty];
+            covariance += ret_x * ret_y;
+        }
+        covariance /= (n_days - 1);
+
+        // Compute correlation coefficient
+        float std_product = stds_a[tx] * stds_b[ty];
+        if (std_product > 1e-8f) {
+            correlation = covariance / std_product;
+        }
+        else {
+            correlation = (global_x == global_y) ? 1.0f : 0.0f;
+        }
+
+        // Ensure correlation is in valid range [-1, 1]
+        correlation = fmaxf(-1.0f, fminf(1.0f, correlation));
+    }
+
+    // Write result to global memory
+    if (global_x < n_assets && global_y < n_assets) {
+        correlation_matrix[global_x * n_assets + global_y] = correlation;
+    }
+}
+
+// RNG initialization kernel
+__global__ void init_rng_kernel(curandState_t* states, int n_states) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n_states) {
+        curand_init(1234 + idx, idx, 0, &states[idx]);
+    }
+}
+
+// Monte Carlo path generation kernel
+__global__ void generate_monte_carlo_paths(
+    const float* __restrict__ correlation_matrix,
+    curandState_t* __restrict__ rng_states,
+    float* __restrict__ mc_paths,
+    const int n_assets,
+    const int n_paths
+) {
+    int path_id = blockIdx.x * blockDim.x + threadIdx.x;
+    if (path_id >= n_paths) return;
+
+    curandState_t local_state = rng_states[path_id];
+
+    // Generate independent normal random variables
+    for (int asset = 0; asset < n_assets; ++asset) {
+        float random_return = curand_normal(&local_state);
+
+        // Apply correlation structure (improved Cholesky for demonstration)
+        float correlated_return = random_return; // Start with base random return
+
+        // Add correlation effects from previous assets (simplified)
+        for (int j = 0; j < asset && j < 10; ++j) { // Limit correlation influence
+            float correlation = correlation_matrix[asset * n_assets + j];
+            if (correlation > 0.1f) { // Only apply significant correlations
+                correlated_return += correlation * 0.1f * curand_normal(&local_state);
+            }
+        }
+
+        mc_paths[path_id * n_assets + asset] = correlated_return;
+    }
+
+    rng_states[path_id] = local_state;
+}
+
+// Portfolio P&L calculation kernel
+__global__ void calculate_portfolio_pnl(
+    const float* __restrict__ mc_paths,
+    const float* __restrict__ portfolio_weights,
+    float* __restrict__ portfolio_pnl,
+    const int n_assets,
+    const int n_paths
+) {
+    int path_id = blockIdx.x * blockDim.x + threadIdx.x;
+    if (path_id >= n_paths) return;
+
+    float pnl = 0.0f;
+    for (int asset = 0; asset < n_assets; ++asset) {
+        float asset_return = mc_paths[path_id * n_assets + asset];
+        float weight = portfolio_weights[asset];
+        pnl += weight * asset_return;
+    }
+
+    portfolio_pnl[path_id] = pnl;
+}
+
+// VaR calculation function
+VaRResults calculate_var(float* portfolio_pnl, int n_paths) {
+    // Sort P&L values using Thrust
+    thrust::device_ptr<float> pnl_ptr(portfolio_pnl);
+    thrust::sort(pnl_ptr, pnl_ptr + n_paths);
+
+    VaRResults results;
+
+    // Calculate VaR at different confidence levels
+    int idx_95 = static_cast<int>(0.05 * n_paths);    // 5th percentile (95% VaR)
+    int idx_99 = static_cast<int>(0.01 * n_paths);    // 1st percentile (99% VaR)
+    int idx_999 = static_cast<int>(0.001 * n_paths);  // 0.1th percentile (99.9% VaR)
+
+    // Copy results to host
+    float host_results[4];
+    CUDA_CHECK(cudaMemcpy(&host_results[0], portfolio_pnl + idx_95, sizeof(float), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(&host_results[1], portfolio_pnl + idx_99, sizeof(float), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(&host_results[2], portfolio_pnl + idx_999, sizeof(float), cudaMemcpyDeviceToHost));
+
+    results.var_95 = -host_results[0];   // VaR is positive (loss)
+    results.var_99 = -host_results[1];
+    results.var_999 = -host_results[2];
+
+    // Calculate Conditional VaR (Expected Shortfall) for 95%
+    float sum_tail = 0.0f;
+    for (int i = 0; i < idx_95; ++i) {
+        float tail_val;
+        CUDA_CHECK(cudaMemcpy(&tail_val, portfolio_pnl + i, sizeof(float), cudaMemcpyDeviceToHost));
+        sum_tail += tail_val;
+    }
+    results.cvar_95 = (idx_95 > 0) ? -sum_tail / idx_95 : 0.0f;
+
+    return results;
+}
+
+// Initialize CUDA memory and data
+void initialize_portfolio_data(PortfolioData& data) {
+    // Allocate device memory
+    CUDA_CHECK(cudaMalloc(&data.asset_returns, N_ASSETS * N_TRADING_DAYS * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&data.correlation_matrix, N_ASSETS * N_ASSETS * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&data.portfolio_weights, N_ASSETS * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&data.mc_paths, N_MC_PATHS * N_ASSETS * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&data.portfolio_pnl, N_MC_PATHS * sizeof(float)));
+
+    // Generate synthetic market data
+    generate_synthetic_market_data(data);
+}
+
+// Cleanup memory
+void cleanup_portfolio_data(PortfolioData& data) {
+    cudaFree(data.asset_returns);
+    cudaFree(data.correlation_matrix);
+    cudaFree(data.portfolio_weights);
+    cudaFree(data.mc_paths);
+    cudaFree(data.portfolio_pnl);
+}
+
+// Initialize random number generators
+void initialize_rng(curandState_t** rng_states) {
+    CUDA_CHECK(cudaMalloc(rng_states, N_MC_PATHS * sizeof(curandState_t)));
+
+    // Initialize RNG states
+    dim3 block(256);
+    dim3 grid((N_MC_PATHS + block.x - 1) / block.x);
+
+    init_rng_kernel << <grid, block >> > (*rng_states, N_MC_PATHS);
+    CUDA_CHECK(cudaDeviceSynchronize());
+}
+
+// Main portfolio VaR calculation function
+int main() {
+    std::cout << "Portfolio VaR Calculation with Optimized Thread Blocks" << std::endl;
+    std::cout << "Portfolio: " << N_ASSETS << " assets, " << N_MC_PATHS << " Monte Carlo paths" << std::endl;
+    std::cout << std::string(70, '=') << std::endl;
+
+    // Initialize data structures
+    PortfolioData portfolio_data;
+    initialize_portfolio_data(portfolio_data);
+
+    // Initialize random number generators
+    curandState_t* rng_states;
+    initialize_rng(&rng_states);
+
+    auto start_total = std::chrono::high_resolution_clock::now();
+
+    // Step 1: Compute correlation matrix with optimized thread blocks
+    std::cout << "Step 1: Computing correlation matrix with optimized thread blocks..." << std::endl;
+    auto start_corr = std::chrono::high_resolution_clock::now();
+
+    // Configure launch parameters
+    dim3 block_dim(TILE_SIZE, TILE_SIZE);
+    dim3 grid_dim((N_ASSETS + TILE_SIZE - 1) / TILE_SIZE,
+        (N_ASSETS + TILE_SIZE - 1) / TILE_SIZE);
+
+    size_t shared_mem_size = 4 * TILE_SIZE * sizeof(float);
+
+    // Launch correlation matrix computation
+    compute_correlation_matrix_optimized << <grid_dim, block_dim, shared_mem_size >> > (
+        portfolio_data.asset_returns,
+        portfolio_data.correlation_matrix,
+        N_ASSETS,
+        N_TRADING_DAYS
+        );
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    auto end_corr = std::chrono::high_resolution_clock::now();
+    auto corr_time = std::chrono::duration<double, std::milli>(end_corr - start_corr).count();
+    std::cout << "  Correlation matrix computation: " << corr_time << " ms" << std::endl;
+
+    // Step 2: Generate Monte Carlo paths
+    std::cout << "Step 2: Generating Monte Carlo paths..." << std::endl;
+    auto start_mc = std::chrono::high_resolution_clock::now();
+
+    dim3 mc_block(256);
+    dim3 mc_grid((N_MC_PATHS + mc_block.x - 1) / mc_block.x);
+
+    generate_monte_carlo_paths << <mc_grid, mc_block >> > (
+        portfolio_data.correlation_matrix, rng_states, portfolio_data.mc_paths,
+        N_ASSETS, N_MC_PATHS);
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    auto end_mc = std::chrono::high_resolution_clock::now();
+    auto mc_time = std::chrono::duration<double, std::milli>(end_mc - start_mc).count();
+    std::cout << "  Monte Carlo path generation: " << mc_time << " ms" << std::endl;
+
+    // Step 3: Calculate portfolio P&L
+    std::cout << "Step 3: Calculating portfolio P&L..." << std::endl;
+    auto start_pnl = std::chrono::high_resolution_clock::now();
+
+    calculate_portfolio_pnl << <mc_grid, mc_block >> > (
+        portfolio_data.mc_paths, portfolio_data.portfolio_weights,
+        portfolio_data.portfolio_pnl, N_ASSETS, N_MC_PATHS);
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    auto end_pnl = std::chrono::high_resolution_clock::now();
+    auto pnl_time = std::chrono::duration<double, std::milli>(end_pnl - start_pnl).count();
+    std::cout << "  Portfolio P&L calculation: " << pnl_time << " ms" << std::endl;
+
+    // Step 4: Calculate VaR
+    std::cout << "Step 4: Calculating Value-at-Risk..." << std::endl;
+    auto start_var = std::chrono::high_resolution_clock::now();
+
+    VaRResults var_results = calculate_var(portfolio_data.portfolio_pnl, N_MC_PATHS);
+
+    auto end_var = std::chrono::high_resolution_clock::now();
+    auto var_time = std::chrono::duration<double, std::milli>(end_var - start_var).count();
+    std::cout << "  VaR calculation: " << var_time << " ms" << std::endl;
+
+    auto end_total = std::chrono::high_resolution_clock::now();
+    auto total_time = std::chrono::duration<double, std::milli>(end_total - start_total).count();
+
+    // Display results
+    std::cout << std::string(70, '=') << std::endl;
+    std::cout << "PORTFOLIO RISK ANALYSIS RESULTS" << std::endl;
+    std::cout << std::string(70, '=') << std::endl;
+    std::cout << std::fixed << std::setprecision(4);
+    std::cout << "95% Value-at-Risk:      " << var_results.var_95 * 100 << "%" << std::endl;
+    std::cout << "99% Value-at-Risk:      " << var_results.var_99 * 100 << "%" << std::endl;
+    std::cout << "99.9% Value-at-Risk:    " << var_results.var_999 * 100 << "%" << std::endl;
+    std::cout << "95% Conditional VaR:    " << var_results.cvar_95 * 100 << "%" << std::endl;
+    std::cout << std::string(70, '=') << std::endl;
+    std::cout << "PERFORMANCE BREAKDOWN" << std::endl;
+    std::cout << std::string(70, '=') << std::endl;
+    std::cout << "Correlation Matrix:     " << corr_time << " ms" << std::endl;
+    std::cout << "Monte Carlo Paths:      " << mc_time << " ms" << std::endl;
+    std::cout << "Portfolio P&L:          " << pnl_time << " ms" << std::endl;
+    std::cout << "VaR Calculation:        " << var_time << " ms" << std::endl;
+    std::cout << "Total Execution Time:   " << total_time << " ms" << std::endl;
+    std::cout << std::string(70, '=') << std::endl;
+
+    // Verify correlation matrix properties
+    std::vector<float> host_corr(N_ASSETS * N_ASSETS);
+    CUDA_CHECK(cudaMemcpy(host_corr.data(), portfolio_data.correlation_matrix,
+        N_ASSETS * N_ASSETS * sizeof(float), cudaMemcpyDeviceToHost));
+
+    // Check diagonal elements (should be 1.0)
+    float avg_diagonal = 0.0f;
+    for (int i = 0; i < N_ASSETS; ++i) {
+        avg_diagonal += host_corr[i * N_ASSETS + i];
+    }
+    avg_diagonal /= N_ASSETS;
+
+    std::cout << "Correlation Matrix Validation:" << std::endl;
+    std::cout << "  Average diagonal element: " << avg_diagonal << " (should be ~1.0)" << std::endl;
+    std::cout << "  Sample correlations: ";
+    for (int i = 0; i < 5; ++i) {
+        std::cout << host_corr[i * N_ASSETS + (i + 1) % N_ASSETS] << " ";
+    }
+    std::cout << std::endl;
+
+    // Cleanup
+    cleanup_portfolio_data(portfolio_data);
+    cudaFree(rng_states);
+
+    return 0;
+}
+
+*********************************
+*/
+
+
+/* **** The following code works ... ****
+
+#include <cuda_runtime.h>
+#include <cooperative_groups.h>
+#include <cublas_v2.h>
+#include <curand.h>
+#include <curand_kernel.h>
+#include <thrust/sort.h>
+#include <thrust/device_vector.h>
+#include <iostream>
+#include <vector>
+#include <random>
+#include <chrono>
+#include <iomanip>
+
+namespace cg = cooperative_groups;
+
+// Portfolio configuration
+constexpr int N_ASSETS = 512;        // Reduced for demonstration (real: 2000)
+constexpr int N_TRADING_DAYS = 252;  // 1 year of trading days
+constexpr int N_MC_PATHS = 100000;   // Monte Carlo paths (real: 50M)
+constexpr int TILE_SIZE = 16;        // Thread block tile size
+
+// Financial data structures
+struct PortfolioData {
+    float* asset_returns;      // [N_ASSETS x N_TRADING_DAYS] historical returns
+    float* correlation_matrix; // [N_ASSETS x N_ASSETS] asset correlations
+    float* portfolio_weights;  // [N_ASSETS] portfolio weights (sum = 1.0)
+    float* mc_paths;          // [N_MC_PATHS x N_ASSETS] Monte Carlo paths
+    float* portfolio_pnl;     // [N_MC_PATHS] portfolio P&L for each path
+};
+
+struct VaRResults {
+    float var_95;    // 95% confidence VaR
+    float var_99;    // 99% confidence VaR  
+    float var_999;   // 99.9% confidence VaR
+    float cvar_95;   // 95% Conditional VaR (Expected Shortfall)
+};
+
+// Error checking macro
+#define CUDA_CHECK(call) \
+    do { \
+        cudaError_t error = call; \
+        if (error != cudaSuccess) { \
+            std::cerr << "CUDA error at " << __FILE__ << ":" << __LINE__ \
+                      << " - " << cudaGetErrorString(error) << std::endl; \
+            exit(1); \
+        } \
+    } while(0)
+
+// Generate synthetic market data for demonstration
+void generate_synthetic_market_data(PortfolioData& data) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::normal_distribution<float> return_dist(0.0f, 0.02f); // 2% daily volatility
+    std::uniform_real_distribution<float> weight_dist(0.0f, 1.0f);
+
+    // Generate historical returns
+    std::vector<float> host_returns(N_ASSETS * N_TRADING_DAYS);
+    for (int asset = 0; asset < N_ASSETS; ++asset) {
+        for (int day = 0; day < N_TRADING_DAYS; ++day) {
+            // Add some correlation structure - sector effects
+            float sector_effect = return_dist(gen) * 0.3f; // 30% sector correlation
+            float idiosyncratic = return_dist(gen) * 0.7f; // 70% asset-specific
+            host_returns[asset * N_TRADING_DAYS + day] = sector_effect + idiosyncratic;
+        }
+    }
+
+    // Generate portfolio weights (normalized)
+    std::vector<float> host_weights(N_ASSETS);
+    float weight_sum = 0.0f;
+    for (int i = 0; i < N_ASSETS; ++i) {
+        host_weights[i] = weight_dist(gen);
+        weight_sum += host_weights[i];
+    }
+    for (int i = 0; i < N_ASSETS; ++i) {
+        host_weights[i] /= weight_sum; // Normalize to sum = 1.0
+    }
+
+    // Copy to device
+    CUDA_CHECK(cudaMemcpy(data.asset_returns, host_returns.data(),
+        N_ASSETS * N_TRADING_DAYS * sizeof(float), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(data.portfolio_weights, host_weights.data(),
+        N_ASSETS * sizeof(float), cudaMemcpyHostToDevice));
+}
+
+// Optimized correlation matrix computation kernel
+__global__ void compute_correlation_matrix_optimized(
+    const float* __restrict__ asset_returns,  // [N_ASSETS x N_TRADING_DAYS]
+    float* __restrict__ correlation_matrix,   // [N_ASSETS x N_ASSETS]
+    const int n_assets,
+    const int n_days
+) {
+    // Initialize cooperative groups
+    auto block = cg::this_thread_block();
+
+    // Calculate tile and thread positions
+    const int tile_x = blockIdx.x;
+    const int tile_y = blockIdx.y;
+    const int tx = threadIdx.x;
+    const int ty = threadIdx.y;
+
+    // Global matrix indices
+    const int global_x = tile_x * TILE_SIZE + tx;
+    const int global_y = tile_y * TILE_SIZE + ty;
+
+    // Bounds checking
+    if (global_x >= n_assets || global_y >= n_assets) return;
+
+    // Shared memory for statistics
+    extern __shared__ float shared_mem[];
+    float* means_a = shared_mem;
+    float* means_b = &shared_mem[TILE_SIZE];
+    float* stds_a = &shared_mem[2 * TILE_SIZE];
+    float* stds_b = &shared_mem[3 * TILE_SIZE];
+
+    // Compute means for asset X (row-wise)
+    if (ty == 0 && tx < TILE_SIZE && global_x < n_assets) {
+        float sum = 0.0f;
+        for (int day = 0; day < n_days; ++day) {
+            sum += asset_returns[global_x * n_days + day];
+        }
+        means_a[tx] = sum / n_days;
+    }
+
+    // Compute means for asset Y (column-wise)
+    if (tx == 0 && ty < TILE_SIZE && global_y < n_assets) {
+        float sum = 0.0f;
+        for (int day = 0; day < n_days; ++day) {
+            sum += asset_returns[global_y * n_days + day];
+        }
+        means_b[ty] = sum / n_days;
+    }
+
+    block.sync();
+
+    // Compute standard deviations for asset X
+    if (ty == 0 && tx < TILE_SIZE && global_x < n_assets) {
+        float sum_sq = 0.0f;
+        for (int day = 0; day < n_days; ++day) {
+            float diff = asset_returns[global_x * n_days + day] - means_a[tx];
+            sum_sq += diff * diff;
+        }
+        stds_a[tx] = sqrtf(sum_sq / (n_days - 1));
+    }
+
+    // Compute standard deviations for asset Y
+    if (tx == 0 && ty < TILE_SIZE && global_y < n_assets) {
+        float sum_sq = 0.0f;
+        for (int day = 0; day < n_days; ++day) {
+            float diff = asset_returns[global_y * n_days + day] - means_b[ty];
+            sum_sq += diff * diff;
+        }
+        stds_b[ty] = sqrtf(sum_sq / (n_days - 1));
+    }
+
+    block.sync();
+
+    // Compute correlation coefficient
+    float correlation = 0.0f;
+    if (global_x < n_assets && global_y < n_assets) {
+        // Compute covariance
+        float covariance = 0.0f;
+        for (int day = 0; day < n_days; ++day) {
+            float ret_x = asset_returns[global_x * n_days + day] - means_a[tx];
+            float ret_y = asset_returns[global_y * n_days + day] - means_b[ty];
+            covariance += ret_x * ret_y;
+        }
+        covariance /= (n_days - 1);
+
+        // Compute correlation coefficient
+        float std_product = stds_a[tx] * stds_b[ty];
+        if (std_product > 1e-8f) {
+            correlation = covariance / std_product;
+        }
+        else {
+            correlation = (global_x == global_y) ? 1.0f : 0.0f;
+        }
+
+        // Ensure correlation is in valid range [-1, 1]
+        correlation = fmaxf(-1.0f, fminf(1.0f, correlation));
+    }
+
+    // Write result to global memory
+    if (global_x < n_assets && global_y < n_assets) {
+        correlation_matrix[global_x * n_assets + global_y] = correlation;
+    }
+}
+
+// RNG initialization kernel
+__global__ void init_rng_kernel(curandState_t* states, int n_states) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n_states) {
+        curand_init(1234 + idx, idx, 0, &states[idx]);
+    }
+}
+
+// Monte Carlo path generation kernel
+__global__ void generate_monte_carlo_paths(
+    const float* __restrict__ correlation_matrix,
+    curandState_t* __restrict__ rng_states,
+    float* __restrict__ mc_paths,
+    const int n_assets,
+    const int n_paths
+) {
+    int path_id = blockIdx.x * blockDim.x + threadIdx.x;
+    if (path_id >= n_paths) return;
+
+    curandState_t local_state = rng_states[path_id];
+
+    // Generate independent normal random variables
+    for (int asset = 0; asset < n_assets; ++asset) {
+        float random_return = curand_normal(&local_state);
+
+        // Apply correlation structure (simplified Cholesky for demonstration)
+        float correlated_return = 0.0f;
+        for (int j = 0; j <= asset; ++j) {
+            float correlation = correlation_matrix[asset * n_assets + j];
+            if (j == asset) {
+                correlated_return += sqrtf(fmaxf(1.0f - correlation * correlation, 0.0f)) * random_return;
+            }
+            else {
+                correlated_return += sqrtf(fmaxf(correlation, 0.0f)) * curand_normal(&local_state);
+            }
+        }
+
+        mc_paths[path_id * n_assets + asset] = correlated_return;
+    }
+
+    rng_states[path_id] = local_state;
+}
+
+// Portfolio P&L calculation kernel
+__global__ void calculate_portfolio_pnl(
+    const float* __restrict__ mc_paths,
+    const float* __restrict__ portfolio_weights,
+    float* __restrict__ portfolio_pnl,
+    const int n_assets,
+    const int n_paths
+) {
+    int path_id = blockIdx.x * blockDim.x + threadIdx.x;
+    if (path_id >= n_paths) return;
+
+    float pnl = 0.0f;
+    for (int asset = 0; asset < n_assets; ++asset) {
+        float asset_return = mc_paths[path_id * n_assets + asset];
+        float weight = portfolio_weights[asset];
+        pnl += weight * asset_return;
+    }
+
+    portfolio_pnl[path_id] = pnl;
+}
+
+// VaR calculation function
+VaRResults calculate_var(float* portfolio_pnl, int n_paths) {
+    // Sort P&L values using Thrust
+    thrust::device_ptr<float> pnl_ptr(portfolio_pnl);
+    thrust::sort(pnl_ptr, pnl_ptr + n_paths);
+
+    VaRResults results;
+
+    // Calculate VaR at different confidence levels
+    int idx_95 = static_cast<int>(0.05 * n_paths);    // 5th percentile (95% VaR)
+    int idx_99 = static_cast<int>(0.01 * n_paths);    // 1st percentile (99% VaR)
+    int idx_999 = static_cast<int>(0.001 * n_paths);  // 0.1th percentile (99.9% VaR)
+
+    // Copy results to host
+    float host_results[4];
+    CUDA_CHECK(cudaMemcpy(&host_results[0], portfolio_pnl + idx_95, sizeof(float), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(&host_results[1], portfolio_pnl + idx_99, sizeof(float), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(&host_results[2], portfolio_pnl + idx_999, sizeof(float), cudaMemcpyDeviceToHost));
+
+    results.var_95 = -host_results[0];   // VaR is positive (loss)
+    results.var_99 = -host_results[1];
+    results.var_999 = -host_results[2];
+
+    // Calculate Conditional VaR (Expected Shortfall) for 95%
+    float sum_tail = 0.0f;
+    for (int i = 0; i < idx_95; ++i) {
+        float tail_val;
+        CUDA_CHECK(cudaMemcpy(&tail_val, portfolio_pnl + i, sizeof(float), cudaMemcpyDeviceToHost));
+        sum_tail += tail_val;
+    }
+    results.cvar_95 = (idx_95 > 0) ? -sum_tail / idx_95 : 0.0f;
+
+    return results;
+}
+
+// Initialize CUDA memory and data
+void initialize_portfolio_data(PortfolioData& data) {
+    // Allocate device memory
+    CUDA_CHECK(cudaMalloc(&data.asset_returns, N_ASSETS * N_TRADING_DAYS * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&data.correlation_matrix, N_ASSETS * N_ASSETS * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&data.portfolio_weights, N_ASSETS * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&data.mc_paths, N_MC_PATHS * N_ASSETS * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&data.portfolio_pnl, N_MC_PATHS * sizeof(float)));
+
+    // Generate synthetic market data
+    generate_synthetic_market_data(data);
+}
+
+// Cleanup memory
+void cleanup_portfolio_data(PortfolioData& data) {
+    cudaFree(data.asset_returns);
+    cudaFree(data.correlation_matrix);
+    cudaFree(data.portfolio_weights);
+    cudaFree(data.mc_paths);
+    cudaFree(data.portfolio_pnl);
+}
+
+// Initialize random number generators
+void initialize_rng(curandState_t** rng_states) {
+    CUDA_CHECK(cudaMalloc(rng_states, N_MC_PATHS * sizeof(curandState_t)));
+
+    // Initialize RNG states
+    dim3 block(256);
+    dim3 grid((N_MC_PATHS + block.x - 1) / block.x);
+
+    init_rng_kernel << <grid, block >> > (*rng_states, N_MC_PATHS);
+    CUDA_CHECK(cudaDeviceSynchronize());
+}
+
+// Main portfolio VaR calculation function
+int main() {
+    std::cout << "Portfolio VaR Calculation with Optimized Thread Blocks" << std::endl;
+    std::cout << "Portfolio: " << N_ASSETS << " assets, " << N_MC_PATHS << " Monte Carlo paths" << std::endl;
+    std::cout << std::string(70, '=') << std::endl;
+
+    // Initialize data structures
+    PortfolioData portfolio_data;
+    initialize_portfolio_data(portfolio_data);
+
+    // Initialize random number generators
+    curandState_t* rng_states;
+    initialize_rng(&rng_states);
+
+    auto start_total = std::chrono::high_resolution_clock::now();
+
+    // Step 1: Compute correlation matrix with optimized thread blocks
+    std::cout << "Step 1: Computing correlation matrix with optimized thread blocks..." << std::endl;
+    auto start_corr = std::chrono::high_resolution_clock::now();
+
+    // Configure launch parameters
+    dim3 block_dim(TILE_SIZE, TILE_SIZE);
+    dim3 grid_dim((N_ASSETS + TILE_SIZE - 1) / TILE_SIZE,
+        (N_ASSETS + TILE_SIZE - 1) / TILE_SIZE);
+
+    size_t shared_mem_size = 4 * TILE_SIZE * sizeof(float);
+
+    // Launch correlation matrix computation
+    compute_correlation_matrix_optimized << <grid_dim, block_dim, shared_mem_size >> > (
+        portfolio_data.asset_returns,
+        portfolio_data.correlation_matrix,
+        N_ASSETS,
+        N_TRADING_DAYS
+        );
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    auto end_corr = std::chrono::high_resolution_clock::now();
+    auto corr_time = std::chrono::duration<double, std::milli>(end_corr - start_corr).count();
+    std::cout << "  Correlation matrix computation: " << corr_time << " ms" << std::endl;
+
+    // Step 2: Generate Monte Carlo paths
+    std::cout << "Step 2: Generating Monte Carlo paths..." << std::endl;
+    auto start_mc = std::chrono::high_resolution_clock::now();
+
+    dim3 mc_block(256);
+    dim3 mc_grid((N_MC_PATHS + mc_block.x - 1) / mc_block.x);
+
+    generate_monte_carlo_paths << <mc_grid, mc_block >> > (
+        portfolio_data.correlation_matrix, rng_states, portfolio_data.mc_paths,
+        N_ASSETS, N_MC_PATHS);
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    auto end_mc = std::chrono::high_resolution_clock::now();
+    auto mc_time = std::chrono::duration<double, std::milli>(end_mc - start_mc).count();
+    std::cout << "  Monte Carlo path generation: " << mc_time << " ms" << std::endl;
+
+    // Step 3: Calculate portfolio P&L
+    std::cout << "Step 3: Calculating portfolio P&L..." << std::endl;
+    auto start_pnl = std::chrono::high_resolution_clock::now();
+
+    calculate_portfolio_pnl << <mc_grid, mc_block >> > (
+        portfolio_data.mc_paths, portfolio_data.portfolio_weights,
+        portfolio_data.portfolio_pnl, N_ASSETS, N_MC_PATHS);
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    auto end_pnl = std::chrono::high_resolution_clock::now();
+    auto pnl_time = std::chrono::duration<double, std::milli>(end_pnl - start_pnl).count();
+    std::cout << "  Portfolio P&L calculation: " << pnl_time << " ms" << std::endl;
+
+    // Step 4: Calculate VaR
+    std::cout << "Step 4: Calculating Value-at-Risk..." << std::endl;
+    auto start_var = std::chrono::high_resolution_clock::now();
+
+    VaRResults var_results = calculate_var(portfolio_data.portfolio_pnl, N_MC_PATHS);
+
+    auto end_var = std::chrono::high_resolution_clock::now();
+    auto var_time = std::chrono::duration<double, std::milli>(end_var - start_var).count();
+    std::cout << "  VaR calculation: " << var_time << " ms" << std::endl;
+
+    auto end_total = std::chrono::high_resolution_clock::now();
+    auto total_time = std::chrono::duration<double, std::milli>(end_total - start_total).count();
+
+    // Display results
+    std::cout << std::string(70, '=') << std::endl;
+    std::cout << "PORTFOLIO RISK ANALYSIS RESULTS" << std::endl;
+    std::cout << std::string(70, '=') << std::endl;
+    std::cout << std::fixed << std::setprecision(4);
+    std::cout << "95% Value-at-Risk:      " << var_results.var_95 * 100 << "%" << std::endl;
+    std::cout << "99% Value-at-Risk:      " << var_results.var_99 * 100 << "%" << std::endl;
+    std::cout << "99.9% Value-at-Risk:    " << var_results.var_999 * 100 << "%" << std::endl;
+    std::cout << "95% Conditional VaR:    " << var_results.cvar_95 * 100 << "%" << std::endl;
+    std::cout << std::string(70, '=') << std::endl;
+    std::cout << "PERFORMANCE BREAKDOWN" << std::endl;
+    std::cout << std::string(70, '=') << std::endl;
+    std::cout << "Correlation Matrix:     " << corr_time << " ms" << std::endl;
+    std::cout << "Monte Carlo Paths:      " << mc_time << " ms" << std::endl;
+    std::cout << "Portfolio P&L:          " << pnl_time << " ms" << std::endl;
+    std::cout << "VaR Calculation:        " << var_time << " ms" << std::endl;
+    std::cout << "Total Execution Time:   " << total_time << " ms" << std::endl;
+    std::cout << std::string(70, '=') << std::endl;
+
+    // Verify correlation matrix properties
+    std::vector<float> host_corr(N_ASSETS * N_ASSETS);
+    CUDA_CHECK(cudaMemcpy(host_corr.data(), portfolio_data.correlation_matrix,
+        N_ASSETS * N_ASSETS * sizeof(float), cudaMemcpyDeviceToHost));
+
+    // Check diagonal elements (should be 1.0)
+    float avg_diagonal = 0.0f;
+    for (int i = 0; i < N_ASSETS; ++i) {
+        avg_diagonal += host_corr[i * N_ASSETS + i];
+    }
+    avg_diagonal /= N_ASSETS;
+
+    std::cout << "Correlation Matrix Validation:" << std::endl;
+    std::cout << "  Average diagonal element: " << avg_diagonal << " (should be ~1.0)" << std::endl;
+    std::cout << "  Sample correlations: ";
+    for (int i = 0; i < 5; ++i) {
+        std::cout << host_corr[i * N_ASSETS + (i + 1) % N_ASSETS] << " ";
+    }
+    std::cout << std::endl;
+
+    // Cleanup
+    cleanup_portfolio_data(portfolio_data);
+    cudaFree(rng_states);
+
+    return 0;
+}
+
+*/
